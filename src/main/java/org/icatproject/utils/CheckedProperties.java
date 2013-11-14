@@ -11,20 +11,38 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Properties;
 
-@SuppressWarnings("serial")
+/**
+ * An extension of the Properties class that provides methods to convert values to a specifc type
+ * and throw an exception if this cannot be done.
+ * 
+ * For example the call getNonNegativeInt() will return an integer which is greater than or equal to
+ * zero.
+ */
 public class CheckedProperties extends Properties {
+
+	private static final long serialVersionUID = 1L;
 
 	public class CheckedPropertyException extends Exception {
 
-		public CheckedPropertyException(String msg) {
+		private static final long serialVersionUID = 1L;
+
+		CheckedPropertyException(String msg) {
 			super(msg);
 		}
 	}
 
 	private String fileName;
-	
+
 	private static FileSystem fileSystem = FileSystems.getDefault();
 
+	/**
+	 * Load from the specified file name
+	 * 
+	 * @param fileName
+	 *            The name of the file to use to
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public void loadFromFile(String fileName) throws CheckedPropertyException {
 		InputStream fis = null;
 
@@ -45,6 +63,14 @@ public class CheckedProperties extends Properties {
 		}
 	}
 
+	/**
+	 * Load properties from a name resource.
+	 * 
+	 * @param name
+	 *            The name of the resource
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public void loadFromResource(String name) throws CheckedPropertyException {
 		URL url = this.getClass().getClassLoader().getResource(name);
 		if (url == null) {
@@ -53,6 +79,17 @@ public class CheckedProperties extends Properties {
 		loadFromFile(url.getFile());
 	}
 
+	/**
+	 * Return value as a string. The string will not be null.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 *             if the property is not found
+	 */
 	public String getString(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -61,6 +98,16 @@ public class CheckedProperties extends Properties {
 		return value;
 	}
 
+	/**
+	 * Return value as an integer. It will be greater than zero.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public int getPositiveInt(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -78,7 +125,17 @@ public class CheckedProperties extends Properties {
 					+ " is not a representation of a positive integer");
 		}
 	}
-	
+
+	/**
+	 * Return value as an integer. It will be greater than or equal zero.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public int getNonNegativeInt(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -96,7 +153,17 @@ public class CheckedProperties extends Properties {
 					+ " is not a representation of a non-negative integer");
 		}
 	}
-	
+
+	/**
+	 * Return value as a double.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public double getDouble(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -110,6 +177,16 @@ public class CheckedProperties extends Properties {
 		}
 	}
 
+	/**
+	 * Return value as a URL.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public URL getURL(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -123,10 +200,28 @@ public class CheckedProperties extends Properties {
 		}
 	}
 
+	/**
+	 * Return true if the property with the specified name exists
+	 * 
+	 * @param name
+	 *            name the name of the property
+	 * 
+	 * @return true if the property with the specified name exists esel false
+	 */
 	public boolean has(String name) {
 		return getProperty(name) != null;
 	}
 
+	/**
+	 * Return value as a File.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public File getFile(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -134,7 +229,17 @@ public class CheckedProperties extends Properties {
 		}
 		return new File(value);
 	}
-	
+
+	/**
+	 * Return value as a Path.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public Path getPath(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {
@@ -143,6 +248,16 @@ public class CheckedProperties extends Properties {
 		return fileSystem.getPath(value);
 	}
 
+	/**
+	 * Return value as an integer. It will be greater than zero.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
 	public long getPositiveLong(String name) throws CheckedPropertyException {
 		String value = getProperty(name);
 		if (value == null) {

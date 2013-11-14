@@ -1,22 +1,144 @@
 <?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.icatproject</groupId>
-        <artifactId>icat</artifactId>
-        <version>4.3.1-SNAPSHOT</version>
-    </parent>
-
+    <groupId>org.icatproject</groupId>
+    <version>4.3.1-SNAPSHOT</version>
     <artifactId>icat.utils</artifactId>
     <packaging>jar</packaging>
     <name>ICAT Utils</name>
+
+    <distributionManagement>
+        <downloadUrl>http://www.icatproject.org/mvn/repo</downloadUrl>
+        <site>
+            <id>website</id>
+            <url>scp://www.icatproject.org/var/www/html/mvn/site/icat/utils/${project.version}</url>
+        </site>
+        <repository>
+            <id>repo</id>
+            <url>scp://www.icatproject.org/var/www/html/mvn/repo</url>
+        </repository>
+    </distributionManagement>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <repoUrl>http://www.icatproject.org/mvn/repo</repoUrl>
+    </properties>
+
+    <description>Some utilities in Java and a small Python library to be called by setup scripts</description>
+    <issueManagement>
+        <url>http://code.google.com/p/icatproject/issues/list</url>
+        <system>Google Code</system>
+    </issueManagement>
+
+    <scm>
+        <connection>scm:svn:http://icatproject.googlecode.com/svn/icat/utils/trunk</connection>
+        <developerConnection>scm:svn:https://icatproject.googlecode.com/svn/icat/utils/trunk</developerConnection>
+        <url>http://code.google.com/p/icatproject/source/browse/#svn%2Ficat%2Futils%2Ftrunk</url>
+    </scm>
+
+    <licenses>
+        <license>
+            <name>BSD 2-Clause</name>
+            <url>http://www.opensource.org/licenses/BSD-2-Clause</url>
+            <distribution>repo</distribution>
+            <comments>Also know informally as the Simplified BSD or FreeBSD License</comments>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>The ICAT Collaboration</name>
+        <url>http://www.icatproject.org</url>
+    </organization>
+
 
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
+            <version>4.8.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>3.1</version>
+                <dependencies>
+                    <dependency><!-- add support for ssh/scp -->
+                        <groupId>org.apache.maven.wagon</groupId>
+                        <artifactId>wagon-ssh</artifactId>
+                        <version>1.0</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.7</version>
+                <dependencies>
+                    <dependency><!-- add support for ssh/scp -->
+                        <groupId>org.apache.maven.wagon</groupId>
+                        <artifactId>wagon-ssh</artifactId>
+                        <version>1.0</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <reporting>
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>javadoc</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>2.7</version>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>index</report>
+                            <report>summary</report>
+                            <report>dependencies</report>
+                            <report>issue-tracking</report>
+                            <report>license</report>
+                            <report>plugins</report>
+                            <report>scm</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+
+        </plugins>
+    </reporting>
 
 </project>
