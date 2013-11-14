@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document xmlns="http://maven.apache.org/XDOC/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/XDOC/2.0 http://maven.apache.org/xsd/xdoc-2.0.xsd">
+
+    <properties>
+        <title>ICAT Utilities</title>
+    </properties>
+
+    <body>
+
+        <section name="Overview">
+
+            <p>
+                There are a few utility classes used by the ICAT core or by more than one component in the ICAT family. Classes are described in the
+                <a href="apidocs/index.html">Javadoc.</a>
+            </p>
+            <p>In addition there is a small python library to be called by setup scripts. To do this requires some maven incantations to add the
+                library to the component being deployed. See the pom.xml of any recent ICAT component to see how it can be done.</p>
+
+
+
+        </section>
+    </body>
+</document>
+			
