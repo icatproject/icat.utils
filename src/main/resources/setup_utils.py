@@ -62,23 +62,43 @@ class Actions(object):
     def configFileExists(self, file):
         return os.path.exists(os.path.join(self.config_path, file))
         
-    def configure(self, file_name, expected, config_file_path=None):
-        if not config_file_path: config_file_path = os.path.join(self.config_path, file_name)
+    def configure(self, file_name, expected, config_file_path=None, dir=None):
+        if not config_file_path: config_file_path = self.config_path
+        if dir:
+            config_file_path = os.path.join(config_file_path, dir)
+            local_path = os.path.join(dir)
+        else:
+            config_file_path = os.path.join(config_file_path, file_name)
+            local_path = os.path.exists(file_name)
         config = os.path.exists(config_file_path)
         if config: config = os.path.getmtime(config_file_path)
-        local = os.path.exists(file_name)
-        if local: local = os.path.getmtime(file_name)
+        local = os.path.exists(local_path)
+        if local: local = os.path.getmtime(local_path)
         if not local:
             if config:
-                shutil.copy(config_file_path, file_name)
-                print "\nCopied " + config_file_path + " to " + file_name
-                print "Please edit", file_name, "to meet your requirements"
+                if dir:
+                    shutil.copytree(config_file_path, dir)
+                    print "\nCopied directory " + config_file_path + " to " + dir
+                    print "Please edit contents of directory ", dir, "to meet your requirements"
+                else:
+                    shutil.copy(config_file_path, file_name)
+                    print "\nCopied " + config_file_path + " to " + file_name
+                    print "Please edit", file_name, "to meet your requirements"
             else:
-                shutil.copy(file_name + ".example", file_name)
-                print "\nCopied " + file_name + ".example" + " to " + file_name
-                print "Please edit", file_name, "to meet your requirements"
-        props = self.getProperties(file_name, [])
-        example = self.getProperties(file_name + ".example", [])
+                if dir:
+                    shutil.copytree(dir + ".example", dir)
+                    print "\nCopied directory " + file_name + ".example" + " to " + dir
+                    print "Please edit contents of directory ", dir, "to meet your requirements"
+                else:
+                    shutil.copy(file_name + ".example", file_name)
+                    print "\nCopied " + file_name + ".example" + " to " + file_name
+                    print "Please edit", file_name, "to meet your requirements"
+        if dir:
+            props = self.getProperties(os.path.join(dir, file_name), [])
+            example = self.getProperties(os.path.join(dir + ".example", file_name), [])
+        else:
+            props = self.getProperties(file_name, [])
+            example = self.getProperties(file_name + ".example", [])
         for key in expected:
             prop = props.get(key)
             if not prop:
@@ -323,6 +343,34 @@ class Actions(object):
             os.remove(dest)
             if self.verbosity:
                 print "\n", file, "removed from", dir
+                
+                
+    def installDir(self, file, dir=None):
+        if not dir: dir = self.config_path
+        if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
+        if not os.path.exists(file): abort (file + " not found") 
+        if not os.path.isdir(file): abort (file + " is not a directory")
+        dest = os.path.join(dir, file)
+        if os.path.exists(dest):
+            if (os.path.getmtime(file) - os.path.getmtime(dest)) > -.001:  # Directory times from python are odd  
+                shutil.rmtree(dest)
+                shutil.copytree(file , dest)
+                print "\n", dest, "has been overwritten"
+            else:
+                print os.path.getmtime(file) - os.path.getmtime(dest)
+                abort("Directory " + dest + " is newer than " + file)
+        else: 
+            shutil.copytree(file , dest)
+            if self.verbosity:
+                print "\n", file, "copied to", dir
+            
+    def removeDir(self, file, dir=None):
+        if not dir: dir = self.config_path
+        dest = os.path.join(dir, file)
+        if os.path.exists(dest): 
+            shutil.rmtree(dest)
+            if self.verbosity:
+                print "\n", directory, "removed from", dir
             
     def getAppName(self, app):
         cmd = self.asadminCommand + " " + "list-applications"
