@@ -179,7 +179,7 @@ class Actions(object):
         if self.verbosity:
             print "\n", files[0], "copied to", self.lib_path
         
-    def removeFromAppLibs(self, jar):
+    def removeFromApplibs(self, jar):
         dest = os.path.join(self.lib_path, jar)
         files = glob.glob(dest)
         if len(files) > 1: abort("Exactly one file must match " + dest)
