@@ -178,6 +178,44 @@ public class CheckedProperties extends Properties {
 	}
 
 	/**
+	 * Return value as a boolean.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
+	public boolean getBoolean(String name) throws CheckedPropertyException {
+		String value = getProperty(name);
+		if (value == null) {
+			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	/**
+	 * Return value as a boolean.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * @param defaultValue
+	 *            the value to be returned if property not found
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
+	public boolean getBoolean(String name, boolean defaultValue) throws CheckedPropertyException {
+		String value = getProperty(name);
+		if (value == null) {
+			return defaultValue;
+		}
+		return getBoolean(name);
+	}
+
+	/**
 	 * Return value as a URL.
 	 * 
 	 * @param name

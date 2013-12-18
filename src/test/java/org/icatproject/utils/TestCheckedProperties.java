@@ -1,6 +1,8 @@
 package org.icatproject.utils;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.icatproject.utils.CheckedProperties.CheckedPropertyException;
 import org.junit.After;
@@ -99,5 +101,21 @@ public class TestCheckedProperties {
 	@Test
 	public final void testGetPositiveInt4() throws Exception {
 		assertEquals(2, s_properties.getPositiveInt("two"));
+	}
+
+	@Test
+	public final void testBools() throws Exception {
+		assertTrue(s_properties.getBoolean("boolt1"));
+		assertTrue(s_properties.getBoolean("boolt2"));
+		assertTrue(s_properties.getBoolean("boolt3"));
+		assertFalse(s_properties.getBoolean("boolf1"));
+		assertFalse(s_properties.getBoolean("boolf2"));
+		assertFalse(s_properties.getBoolean("boolf3"));
+		assertFalse(s_properties.getBoolean("boolf3", false));
+		assertFalse(s_properties.getBoolean("boolf3", true));
+		assertTrue(s_properties.getBoolean("boolt3", false));
+		assertTrue(s_properties.getBoolean("boolt3", true));
+		assertFalse(s_properties.getBoolean("bool", false));
+		assertTrue(s_properties.getBoolean("bool", true));
 	}
 }

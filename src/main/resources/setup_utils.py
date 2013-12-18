@@ -69,7 +69,7 @@ class Actions(object):
             local_path = os.path.join(dir)
         else:
             config_file_path = os.path.join(config_file_path, file_name)
-            local_path = os.path.exists(file_name)
+            local_path = file_name
         config = os.path.exists(config_file_path)
         if config: config = os.path.getmtime(config_file_path)
         local = os.path.exists(local_path)
