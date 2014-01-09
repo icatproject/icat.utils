@@ -58,6 +58,7 @@ class Actions(object):
         self.config_path = None
         self.lib_path = None
         self.clashes = 0
+        self.version = None
         
     def configFileExists(self, file):
         return os.path.exists(os.path.join(self.config_path, file))
@@ -148,6 +149,14 @@ class Actions(object):
         self.lib_path = os.path.join(domain_path, "lib", "applibs")
         if not os.path.exists(self.lib_path): abort("Domain's lib directory " + self.lib_path + " does not exist")
         
+        cmd = self.asadminCommand + " version" 
+        out, err, rc = self.execute(cmd)
+        if rc: abort(err)
+        vline = out.splitlines()[0]
+        pos = vline.find("(")
+        self.version = int(vline[:pos].split()[-1].split(".")[0])
+        if self.verbosity: print "You are using Glassfish version", self.version
+        
         return props
     
     def deleteFileRealmUser(self, username):
@@ -188,7 +197,7 @@ class Actions(object):
             if self.verbosity:
                 print "\n", os.path.basename(files[0]), "removed from", self.lib_path 
                  
-    def addFileRealmUser(self, username, password):
+    def addFileRealmUser(self, username, password, group):
         if self.getAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping") == "false":
             self.setAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping", "true")
             self.stopDomain()
@@ -201,19 +210,21 @@ class Actions(object):
             if c.isdigit(): digit = True
             elif c.islower(): lc = True
             elif c.isupper(): uc = True
-        if not (digit and lc and uc) : abort("admin.password must contain at least one digit, a lower case character and an upper case character")
+        if not (digit and lc and uc) : abort("password must contain at least one digit, a lower case character and an upper case character")
             
         self.asadmin("delete-file-user " + username, tolerant=True)
         f = open("pw", "w")
         print >> f, "AS_ADMIN_USERPASSWORD=" + password
         f.close() 
-        self.asadmin("--passwordfile pw create-file-user --groups ICATAdmin " + username)
+        self.asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
         
-    def deploy(self, file, contextroot=None, libraries=[]):
+    def deploy(self, file, contextroot=None, deploymentorder=100, libraries=[]):
         files = glob.glob(file)
         if len(files) != 1: abort("Exactly one file must match " + file)
         cmd = self.asadminCommand + " " + "deploy"
+        if self.version >= 4:
+            cmd = cmd + " --deploymentorder " + str(deploymentorder)
         if contextroot:
             cmd = cmd + " --contextroot " + contextroot
         if libraries:
