@@ -94,6 +94,7 @@ class Actions(object):
                     shutil.copy(file_name + ".example", file_name)
                     print "\nCopied " + file_name + ".example" + " to " + file_name
                     print "Please edit", file_name, "to meet your requirements"
+            abort("... and then re-run the command")
         if dir:
             props = self.getProperties(os.path.join(dir, file_name), [])
             example = self.getProperties(os.path.join(dir + ".example", file_name), [])
@@ -105,34 +106,30 @@ class Actions(object):
             if not prop:
                 self.clashes += 1
                 print "Error: property", key, "is not set in", file_name
-        first = True
-        for key in props.keys():
-            if key in example:
-                if props[key] != example[key]: print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "which differs from example:", "'" + example[key] + "'"
-            else:  print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "is not in example"
-        for key in example.keys():
-            if key not in props: print "\nValue for" , key, "not in", file_name, "but is in example:", "'" + example[key] + "'"
-        
-                
-    def setConfigured(self):
+
+        if self.verbosity > 1:
+            for key in props.keys():
+                if key in example:
+                    if props[key] != example[key]: print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "which differs from example:", "'" + example[key] + "'"
+                else:  print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "is not in example"
+            for key in example.keys():
+                if key not in props: print "\nValue for" , key, "not in", file_name, "but is in example:", "'" + example[key] + "'"
+            
+    def checkNoErrors(self):
         if self.clashes:
-            print "Please edit configuration files and try again as", self.clashes, "errors were reported."
-        else:
-            f = open("configured", "w")
-            f.close()
-            
-    def checkConfigured(self):
-        if not os.path.exists("configured"): abort("Please make sure that 'setup configure' runs without errors")
-            
+            abort("Please edit configuration files and try again as " + str(self.clashes) + " errors were reported.")
+                        
     def getGlassfish(self, file_name, required):
         if not os.path.exists(file_name):
-            shutil.copy(file_name + ".example", file_name)
+            shutil.copy(file_name + ".example", file_name) 
+            if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
             abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
         if os.stat(file_name).st_mode & stat.S_IROTH:
             if platform.system() == "Windows":
                 print "Warning: '" + file_name + "' should not be world readable"
             else:
-                abort("'" + file_name + "' must not be world readable")
+                os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+                print "'" + file_name + "' mode changed to 0600"
         props = self.getProperties(file_name, required)
         
         glassfish = props["glassfish"]

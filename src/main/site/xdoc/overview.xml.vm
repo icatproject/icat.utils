@@ -16,8 +16,6 @@
             <p>In addition there is a small python library to be called by setup scripts. To do this requires some maven incantations to add the
                 library to the component being deployed. See the pom.xml of any recent ICAT component to see how it can be done.</p>
 
-
-
         </section>
     </body>
 </document>
