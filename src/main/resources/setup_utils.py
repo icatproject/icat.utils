@@ -278,12 +278,7 @@ class Actions(object):
         for item in needed:
             if (item not in props):
                 abort(item + " must be specified in " + fileName)
-        
-        if self.verbosity > 1:
-            print "\n" + fileName + " contains:"
-            for item in props.items():
-                print "  ", item[0], ":", item[1]
-        
+               
         return props
     
     def execute(self, cmd):
