@@ -14,7 +14,7 @@ import platform
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
-    print >> sys.stderr, msg, "\n"
+    print >> sys.stderr, msg, "\n", "*** Command failed ***\n"
     sys.exit(1)
         
 def getActions(binDir=False, appDir=False):
