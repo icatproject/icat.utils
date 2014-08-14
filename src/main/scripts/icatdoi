@@ -1,0 +1,264 @@
+#!/usr/bin/env python
+"""A script for generating DataCite DOI's for ICAT Component
+releases. When given a major, minor and patch release number along
+with username and password credentials, it will build a DOI of the
+form "10.5286/Software/[component]/[major].[minor].[patch]", and post
+it to the DataCite DOI API.
+
+This code is derived from code written by the Mantid project
+(doi:10.5286/software/mantid) """
+
+import argparse
+
+import xml.etree.ElementTree as ET
+
+import subprocess
+import re
+import os
+from datetime import date
+
+# Successful responses from the DataCite servers appear to only come in one of
+# two forms:
+# - 'OK'
+# - 'OK ([DOI])'
+SUCCESS_RESPONSE = '^OK( \((.+)\))?$'
+
+# Point all "deleted" DOIs to here:
+INVALID_URL = 'http://www.datacite.org/invalidDOI'
+
+def build_xml_form(doi, relationships, title_str, version_str):
+    # The root resource node must contain the various schema information.
+    root = ET.Element('resource')
+    root.set('xmlns', 'http://datacite.org/schema/kernel-3')
+    root.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+    root.set('xsi:schemaLocation', 'http://datacite.org/schema/kernel-3 ht' + \
+                                   'tp://schema.datacite.org/meta/kernel-3' + \
+                                   '/metadata.xsd')
+
+    # "The DOI"
+    identifier = ET.SubElement(root, 'identifier')
+    identifier.text = doi
+    identifier.set('identifierType', 'DOI')
+
+    # Creators are defined as "the main researchers involved in producing the 
+    # data, or the authors of the publication, in priority order"
+    creators = ET.SubElement(root, 'creators')
+    creator = ET.SubElement(creators, 'creator')
+    ET.SubElement(creator, 'creatorName').text = "The ICAT Collaboration"
+
+    # Titles are defined as a "name or title by which a resource is known".
+    titles = ET.SubElement(root, 'titles')
+    ET.SubElement(titles, 'title').text = title_str
+
+    # "The name of the entity that holds, archives, publishes, prints,
+    # distributes, releases, issues, or produces the resource. This property
+    # will be used to formulate the citation, so consider the prominence of
+    # the role."
+    ET.SubElement(root, 'publisher').text = 'the ICAT Collaboration'
+
+    # "The year when the data was or will be made publicly available."
+    ET.SubElement(root, 'publicationYear').text = str(date.today().year)
+
+    # "Subject, keyword, classification code, or key phrase describing the
+    # resource."
+    subject_text_list = [
+        'Catalog',
+        'Metadata',
+        'Data',
+        'Open Source',
+        'Software'
+    ]
+    subjects = ET.SubElement(root, 'subjects')
+    for subject_text in subject_text_list:
+        ET.SubElement(subjects, 'subject').text = subject_text
+
+    # "The primary language of the resource."
+    ET.SubElement(root, 'language').text = 'en'
+
+    # "A description of the resource. The format is open, but the
+    # preferred format is a single term of some detail so that a pair can be
+    # formed with the sub-property."  Just using the general type "software"
+    # seems good enough for our purposes.
+    resource_type = ET.SubElement(root, 'resourceType')
+    resource_type.text = ''
+    resource_type.set('resourceTypeGeneral', 'Software')
+
+    # "The version number of the resource." Suggested practice is to "register
+    # a new identifier for a major version change."  We'll be ignoring this
+    # as we're having a new DOI for every major/minor/patch release.
+    if version_str:
+        ET.SubElement(root, 'version').text = version_str
+
+    # "Identifiers of related resources. These must be globally unique
+    # identifiers."
+    if relationships:
+        related_identifiers = ET.SubElement(root, 'relatedIdentifiers')
+    for doi, relation_type in relationships.items():
+        related_identifier = ET.SubElement(
+            related_identifiers, 'relatedIdentifier'
+        )
+        related_identifier.text = doi
+        related_identifier.set('relatedIdentifierType', 'DOI')
+        related_identifier.set('relationType', relation_type)
+
+    return ET.tostring(root, encoding='utf-8')
+
+def _http_request(body, method, url, username, password):
+    args = [
+        'curl',
+        '--user', username + ':' + password,
+        '--proxy', 'wwwcache.rl.ac.uk:8080',
+        '--header', 'Content-Type:text/plain;charset=UTF-8',
+        # The bodies of HTTP messages must be encoded:
+        '--data', body.encode('utf-8'),
+        '--request', method,
+    ]
+
+    args.append('--silent')
+
+    args.append(url)
+
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE)
+    result = proc.stdout.readlines()
+
+    print "Server Response: " + str(result)
+    return result
+
+def delete_doi(base, doi, username, password):
+    print "\nAttempting to delete the meta data for:" + doi 
+    result = _http_request('', 'DELETE', base + "metadata/" + doi, username, password)
+
+    if not re.match(SUCCESS_RESPONSE, result[0]):
+        raise Exception('Deleting metadata unsuccessful.  Quitting.')
+
+    print "\nAttempting to point " + doi + " to invalid page."
+    result = _http_request('doi=' + doi + '\n' + 'url=' + INVALID_URL, "PUT", base + "doi/" + doi, username, password)
+
+    if not re.match(SUCCESS_RESPONSE, result[0]):
+        raise Exception('Pointing DOI to invalid page was unsuccessful.')
+
+def create_or_update_metadata(xml_form, base, doi, username, password):
+    '''Attempts to create some new metadata for the doi of the given address.
+    Metadata must be created before a doi can be created.  If the metadata
+    already exists, then it will simply be updated.
+    '''
+    print "\nAttempting to create / update metadata:"
+    result = _http_request(xml_form, "PUT", base + "metadata/" + doi, username, password)
+  
+    if not re.match(SUCCESS_RESPONSE, result[0]):
+        raise Exception('Creation/updating metadata unsuccessful.  Quiting.')
+
+def create_or_update_doi(base, doi, destination, username, password):
+    '''Attempts to create a new DOI of the given address.  Metadata must be
+    created before this can be successful.  If the doi already exists, then it
+    will simply be updated.
+    '''
+    print "\nAttempting to create / update the following DOI:"
+    print 'DOI = ' + doi
+    print 'URL = ' + destination
+    result = _http_request('doi=' + doi + '\n' + 'url=' + destination, "PUT", base + "doi/" + doi, username, password)
+
+    if not re.match(SUCCESS_RESPONSE, result[0]):
+        raise Exception('Creation/updating DOI unsuccessful.  Quitting.')
+
+def check_if_doi_exists(base, doi, destination, username, password):
+    '''Attempts to check if the given doi exists by querying the server and
+    seeing if what comes back is the expected DOI destination.  Returns True
+    if a doi is found (and the destination returned by the server is the same
+    as the given destination), else false.  Throws if the response from the
+    server is unrecognised, or if there is no response at all.
+    '''
+    print "\nChecking if \"" + base + "doi/" + doi + "\" DOI exists."
+    result = _http_request('', 'GET', base + "doi/" + doi, username, password)
+
+    if result[0] == 'DOI not found' or result[0] == INVALID_URL:
+        print "\"" + doi + "\" does not exist"
+        return False
+    elif result[0] == destination:
+        print "DOI found."
+        return True
+    else:
+        raise Exception(
+            "Unexpected result back from server: \"" + result[0] + "\"")
+
+def run(options):
+ 
+    parent = None
+    doi = '10.5286/Software/ICAT'
+    destination = 'http://icatproject.org'
+    title = "The ICAT Project"
+
+    if options.component:
+        parent = doi
+        doi += "/" + options.component
+        destination += "/" + options.component.replace(".", "/")
+        title += ": " + options.component
+
+    if options.version:
+        parent = doi
+        doi += "/" + options.version
+        destination += "/" + options.version
+        title += " version " + options.version
+
+    if options.test:
+        server_url_base = 'https://test.datacite.org/mds/'
+    else:
+        server_url_base = 'https://mds.datacite.org/'
+
+    if options.delete:
+        delete_doi(server_url_base, doi, options.username, options.password)
+        quit()
+
+    relationships = {}
+    if parent:
+        relationships[parent] = 'IsPartOf'
+
+    xml_form = build_xml_form(doi, relationships, title, options.version)
+    if options.debug: print xml_form
+
+    create_or_update_metadata(xml_form, server_url_base, doi, options.username, options.password)
+    create_or_update_doi(server_url_base, doi, destination, options.username, options.password)    
+
+    # Print out a custom success message, depending on the initial options.
+    if not options.test:
+        operation = "resolved"
+        doi_add = 'http://dx.doi.org/' + doi
+        meta_add = 'https://mds.datacite.org/metadata/' + doi
+    else:
+        operation = "inspected"
+        doi_add = 'https://test.datacite.org/mds/doi/' + doi
+        meta_add = 'https://test.datacite.org/mds/metadata/' + doi
+
+    print "\nSUCCESS!" + \
+                  "\nThe DOI can be %s at \"%s\"." % (operation, doi_add) + \
+                  "\nThe metadata can be inspected at \"%s\"." % (meta_add)
+    quit()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Register the DOI needed for an ICAT release."
+    )
+
+    parser.add_argument("username", help="username at datacite server")
+    parser.add_argument("password", help="password at datacite server")
+    parser.add_argument("component", nargs="?", help="name of component e.g. ids.server")
+    parser.add_argument("version", nargs="?", help="component version e.g. 1.3.1")
+
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='Send submissions to the test server to trial run the script.'
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Turn debug mode on.  Basically, makes cURL more talkative.'
+    )
+    parser.add_argument(
+        '--delete',
+        action='store_true',
+        help='Delete ("make inactive") the DOI metadata with the given ' + \
+             'details.  Note that this does NOT delete the DOI.'
+    )
+
+    run(parser.parse_args())

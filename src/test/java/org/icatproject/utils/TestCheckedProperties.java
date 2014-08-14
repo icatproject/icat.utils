@@ -83,6 +83,21 @@ public class TestCheckedProperties {
 		s_properties.getNonNegativeInt("minustwo");
 	}
 
+	@Test
+	public final void testGetNonNegativeLong1() throws Exception {
+		assertEquals(2L, s_properties.getNonNegativeLong("two"));
+	}
+
+	@Test
+	public final void testGetNonNegativeLong2() throws Exception {
+		assertEquals(0L, s_properties.getNonNegativeLong("zero"));
+	}
+
+	@Test(expected = CheckedPropertyException.class)
+	public final void testGetNonNegativeLong3() throws Exception {
+		s_properties.getNonNegativeLong("minustwo");
+	}
+
 	@Test(expected = CheckedPropertyException.class)
 	public final void testGetPositiveInt1() throws Exception {
 		s_properties.getPositiveInt("badtwo");

@@ -287,6 +287,35 @@ public class CheckedProperties extends Properties {
 	}
 
 	/**
+	 * Return value as an integer. It will be greater than or equal to zero.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 */
+	public long getNonNegativeLong(String name) throws CheckedPropertyException {
+		String value = getProperty(name);
+		if (value == null) {
+			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
+		}
+		try {
+			long lValue = Long.parseLong(value);
+			if (lValue < 0L) {
+				throw new CheckedPropertyException(name + " as defined in " + this.fileName
+						+ " is not a representation of a non-negative long");
+			}
+			return lValue;
+		} catch (NumberFormatException e) {
+			throw new CheckedPropertyException(name + " as defined in " + this.fileName
+					+ " is not a representation of a non-negative long");
+		}
+
+	}
+	
+	/**
 	 * Return value as an integer. It will be greater than zero.
 	 * 
 	 * @param name
