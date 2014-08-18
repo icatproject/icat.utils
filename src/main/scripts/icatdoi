@@ -191,7 +191,7 @@ def run(options):
     if options.component:
         parent = doi
         doi += "/" + options.component
-        destination += "/" + options.component.replace(".", "/")
+        destination += "/mvn/site/" + options.component.replace(".", "/")
         title += ": " + options.component
 
     if options.version:
