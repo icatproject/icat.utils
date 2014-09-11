@@ -1,11 +1,14 @@
 package org.icatproject.utils;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A wrapper around ProcessBuilder to allow stdout and stderr to be kept separate without risk of
@@ -28,7 +31,20 @@ public class ShellCommand {
 		for (String arg : args) {
 			arglist.add(arg);
 		}
-		init(arglist);
+		init(null, null, arglist);
+	}
+
+	/**
+	 * Construct a ShellCommand
+	 * 
+	 * @param args
+	 */
+	public ShellCommand(Path home, InputStream is, String... args) {
+		List<String> arglist = new ArrayList<String>(args.length);
+		for (String arg : args) {
+			arglist.add(arg);
+		}
+		init(home, is, arglist);
 	}
 
 	/**
@@ -37,10 +53,10 @@ public class ShellCommand {
 	 * @param arglist
 	 */
 	public ShellCommand(List<String> arglist) {
-		init(arglist);
+		init(null, null, arglist);
 	}
 
-	private void init(List<String> args) {
+	private void init(Path home, InputStream is, List<String> args) {
 		Process p = null;
 		StreamReader osr;
 		StreamReader esr;
@@ -48,7 +64,12 @@ public class ShellCommand {
 		InputStream pesr = null;
 		OutputStream pisr = null;
 		try {
-			p = new ProcessBuilder(args).start();
+			ProcessBuilder pb = new ProcessBuilder(args);
+			if (home != null) {
+				pb.directory(home.toFile());
+			}
+
+			p = pb.start();
 
 			posr = p.getInputStream();
 			osr = new StreamReader(posr);
@@ -59,6 +80,13 @@ public class ShellCommand {
 			esr.start();
 
 			pisr = p.getOutputStream();
+			if (is != null) {
+				byte[] bytes = new byte[1024];
+				int n;
+				while ((n = is.read(bytes)) != -1) {
+					pisr.write(bytes, 0, n);
+				}
+			}
 			pisr.close(); // Close the stream feeding the process
 
 			osr.join();

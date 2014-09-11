@@ -3,6 +3,9 @@ package org.icatproject.utils;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 import org.junit.Test;
@@ -28,6 +31,29 @@ public class TestShellCommand {
 		int exitCode = sc.getExitValue();
 		System.out.println(stderr);
 		assertEquals("stdout", 0, stdout.length());
+		assertEquals("stderr", 0, stderr.length());
+		assertEquals("exitCode", 0, exitCode);
+	}
+
+	@Test
+	public void testPipein() throws Exception {
+		ByteArrayInputStream bais = new ByteArrayInputStream("date\nsleep 1\ndate".getBytes());
+		ShellCommand sc = new ShellCommand(null, bais, "cat");
+		String stdout = sc.getStdout();
+		String stderr = sc.getStderr();
+		int exitCode = sc.getExitValue();
+		assertEquals("stdout", 17, stdout.length());
+		assertEquals("stderr", 0, stderr.length());
+		assertEquals("exitCode", 0, exitCode);
+	}
+
+	@Test
+	public void testHome() throws Exception {
+		ShellCommand sc = new ShellCommand(Paths.get("/home"), (InputStream) null, "pwd");
+		String stdout = sc.getStdout();
+		String stderr = sc.getStderr();
+		int exitCode = sc.getExitValue();
+		assertEquals("stdout", "/home\n", stdout);
 		assertEquals("stderr", 0, stderr.length());
 		assertEquals("exitCode", 0, exitCode);
 	}
