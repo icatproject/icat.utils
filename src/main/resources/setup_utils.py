@@ -14,7 +14,7 @@ import platform
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
-    print >> sys.stderr, msg, "\n", "*** Command failed ***\n"
+    print >> sys.stderr, "\n", msg, "\nSetup is not complete\n"
     sys.exit(1)
         
 def getActions(binDir=False, appDir=False):
@@ -137,6 +137,14 @@ class Actions(object):
         
         self.asadminCommand = os.path.join(glassfish, "bin", "asadmin") + " --port " + props["port"]
         
+        # Test that domain is running and that password set up
+        out, err, rc = self.execute(self.asadminCommand + " get property.administrative.domain.name")
+        if rc:
+            if err.startswith("Remote server does not listen"): abort('Please use the "asadmin start-domain" command to start your domain')
+            if err.startswith("Authentication failed for user: null"): abort ('Please use the "asadmin login" command and accept the default user name to be able to access your domain')
+            abort(err)
+        
+        
         self.domain = self.getAsadminProperty("property.administrative.domain.name")
         
         domain_path = os.path.join(glassfish, "glassfish", "domains", self.domain)
@@ -146,7 +154,7 @@ class Actions(object):
         self.lib_path = os.path.join(domain_path, "lib", "applibs")
         if not os.path.exists(self.lib_path): abort("Domain's lib directory " + self.lib_path + " does not exist")
         
-        cmd = self.asadminCommand + " version" 
+        cmd = self.asadminCommand + " version"
         out, err, rc = self.execute(cmd)
         if rc: abort(err)
         vline = out.splitlines()[0]
@@ -385,7 +393,7 @@ class Actions(object):
             
     def getAsadminProperty(self, name):
         cmd = self.asadminCommand + " get " + name
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print "\nexecute: " + cmd
         out, err, rc = self.execute(cmd)
         if rc: abort(err)
         return out.splitlines()[0].split("=")[1]

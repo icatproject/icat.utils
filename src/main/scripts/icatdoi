@@ -54,7 +54,7 @@ def build_xml_form(doi, relationships, title_str, version_str):
     # distributes, releases, issues, or produces the resource. This property
     # will be used to formulate the citation, so consider the prominence of
     # the role."
-    ET.SubElement(root, 'publisher').text = 'the ICAT Collaboration'
+    ET.SubElement(root, 'publisher').text = 'The ICAT Collaboration'
 
     # "The year when the data was or will be made publicly available."
     ET.SubElement(root, 'publicationYear').text = str(date.today().year)
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         description="Register the DOI needed for an ICAT release."
     )
 
-    parser.add_argument("username", help="username at datacite server")
+    parser.add_argument("--username", "-u", help="username at datacite server", default="BL.STFC")
     parser.add_argument("password", help="password at datacite server")
     parser.add_argument("component", nargs="?", help="name of component e.g. ids.server")
     parser.add_argument("version", nargs="?", help="component version e.g. 1.3.1")
