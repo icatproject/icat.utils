@@ -1,14 +1,12 @@
 package org.icatproject.utils;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A wrapper around ProcessBuilder to allow stdout and stderr to be kept separate without risk of

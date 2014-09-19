@@ -200,7 +200,15 @@ class Actions(object):
         if len(files) == 1: 
             os.remove(files[0])
             if self.verbosity:
-                print "\n", os.path.basename(files[0]), "removed from", self.lib_path 
+                print "\n", os.path.basename(files[0]), "removed from", self.lib_path
+                
+    def getJDBCProps(self, driver):
+        result = "--datasourceclassname " + driver
+        if driver.startswith("oracle"):
+            result += " --validateatmostonceperiod=60 --validationtable=dual --creationretryattempts=10 --isconnectvalidatereq=true"
+        result += " --restype javax.sql.DataSource --failconnection=true --steadypoolsize 2"
+        result += " --maxpoolsize 32 --ping"
+        return " " + result + " "
                  
     def addFileRealmUser(self, username, password, group):
         if self.getAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping") == "false":
