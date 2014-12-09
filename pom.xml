@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.icatproject</groupId>
-    <version>4.7.0-SNAPSHOT</version>
+    <version>4.7.0</version>
     <artifactId>icat.utils</artifactId>
     <packaging>jar</packaging>
     <name>ICAT Utils</name>
@@ -32,9 +32,9 @@
     </issueManagement>
 
     <scm>
-        <connection>scm:svn:http://icatproject.googlecode.com/svn/icat/utils/trunk</connection>
-        <developerConnection>scm:svn:https://icatproject.googlecode.com/svn/icat/utils/trunk</developerConnection>
-        <url>http://code.google.com/p/icatproject/source/browse/#svn%2Ficat%2Futils%2Ftrunk</url>
+        <connection>scm:svn:http://icatproject.googlecode.com/svn/icat/utils/tags/icat.utils-4.7.0</connection>
+        <developerConnection>scm:svn:https://icatproject.googlecode.com/svn/icat/utils/tags/icat.utils-4.7.0</developerConnection>
+        <url>http://code.google.com/p/icatproject/source/browse/#svn%2Ficat%2Futils%2Ftrunk/tags/icat.utils-4.7.0</url>
     </scm>
 
     <licenses>
