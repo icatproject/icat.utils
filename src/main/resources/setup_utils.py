@@ -165,7 +165,7 @@ class Actions(object):
         return props
     
     def deleteFileRealmUser(self, username):
-        self.asadmin("delete-file-user " + username, tolerant=True)
+        self._asadmin("delete-file-user " + username, tolerant=True)
         
     def stopDomain(self):
         cmd = self.asadminCommand + " stop-domain " + self.domain
@@ -184,7 +184,7 @@ class Actions(object):
                     self.execute(cmd)
                     
     def startDomain(self):
-        self.asadmin("start-domain " + self.domain)
+        self._asadmin("start-domain " + self.domain)
         
     def installToApplibs(self, jar):
         files = glob.glob(jar)
@@ -214,7 +214,7 @@ class Actions(object):
         if self.getAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping") == "false":
             self.setAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping", "true")
             self.stopDomain()
-            self.asadmin("start-domain " + self.domain)
+            self._asadmin("start-domain " + self.domain)
             
         digit = False
         lc = False
@@ -225,11 +225,11 @@ class Actions(object):
             elif c.isupper(): uc = True
         if not (digit and lc and uc) : abort("password must contain at least one digit, a lower case character and an upper case character")
             
-        self.asadmin("delete-file-user " + username, tolerant=True)
+        self._asadmin("delete-file-user " + username, tolerant=True)
         f = open("pw", "w")
         print >> f, "AS_ADMIN_USERPASSWORD=" + password
         f.close() 
-        self.asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
+        self._asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
         
     def deploy(self, file, contextroot=None, deploymentorder=100, libraries=[]):
@@ -262,7 +262,8 @@ class Actions(object):
                 line = line.strip()
                 if line:
                     if line.startswith("PER01"): continue
-                    print line   
+                    print line
+        if rc: abort("Deployment failed")              
     
     def getProperties(self, fileName, needed):
         """Read properties files and check that the properties in the needed list are present"""
@@ -325,7 +326,7 @@ class Actions(object):
         
         return out, err, rc
     
-    def asadmin(self, command, tolerant=False, printOutput=False):
+    def _asadmin(self, command, tolerant=False, printOutput=False):
         cmd = self.asadminCommand + " " + command
         if self.verbosity: print "\nexecute: " + cmd 
         out, err, rc = self.execute(cmd)
@@ -399,6 +400,14 @@ class Actions(object):
             if (line.startswith(app + "-")):
                 return line.split()[0]
             
+    def restartApp(self, appName):
+        self._asadmin("disable " + appName)
+        self._asadmin("enable " + appName)
+   
+        
+    def undeploy(self, appName):
+        self._asadmin("undeploy " + appName)
+        
     def getAsadminProperty(self, name):
         cmd = self.asadminCommand + " get " + name
         if self.verbosity: print "\nexecute: " + cmd
