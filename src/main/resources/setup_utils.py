@@ -201,14 +201,19 @@ class Actions(object):
             os.remove(files[0])
             if self.verbosity:
                 print "\n", os.path.basename(files[0]), "removed from", self.lib_path
+                  
+    def unregisterDB(self, name):
+        self._asadmin("delete-jdbc-resource jdbc/" + name, tolerant=True)
+        self._asadmin("delete-jdbc-connection-pool " + name, tolerant=True)
                 
-    def getJDBCProps(self, driver):
-        result = "--datasourceclassname " + driver
+    def registerDB(self, driver, dbProperties, name):
+        dProps = "--datasourceclassname " + driver
         if driver.startswith("oracle"):
             result += " --validateatmostonceperiod=60 --validationtable=dual --creationretryattempts=10 --isconnectvalidatereq=true"
-        result += " --restype javax.sql.DataSource --failconnection=true --steadypoolsize 2"
-        result += " --maxpoolsize 32 --ping"
-        return " " + result + " "
+        dProps += " --restype javax.sql.DataSource --failconnection=true --steadypoolsize 2"
+        dProps += " --maxpoolsize 32 --ping"
+        self._asadmin('create-jdbc-connection-pool ' + dProps + ' --property ' + dbProperties + ' ' + name, printOutput=True)
+        self._asadmin("create-jdbc-resource --connectionpoolid " + name + " jdbc/" + name)
                  
     def addFileRealmUser(self, username, password, group):
         if self.getAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping") == "false":
@@ -404,7 +409,6 @@ class Actions(object):
         self._asadmin("disable " + appName)
         self._asadmin("enable " + appName)
    
-        
     def undeploy(self, appName):
         self._asadmin("undeploy " + appName)
         
