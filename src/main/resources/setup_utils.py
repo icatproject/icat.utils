@@ -406,9 +406,15 @@ class Actions(object):
                 return line.split()[0]
             
     def restartApp(self, appName):
-        self._asadmin("disable " + appName)
+        self.disable(appName)
+        self.enable(appName)
+        
+    def enableApp(self, appName):
         self._asadmin("enable " + appName)
-   
+        
+    def disableApp(self, appName):
+        self._asadmin("disable " + appName, tolerant=True, printOutput=True)
+    
     def undeploy(self, appName):
         self._asadmin("undeploy " + appName)
         
