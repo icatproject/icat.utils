@@ -1,0 +1,21 @@
+<project xmlns="http://maven.apache.org/DECORATION/1.6.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://maven.apache.org/DECORATION/1.6.0 http://maven.apache.org/xsd/decoration-1.6.0.xsd">
+
+  <body>
+  
+   <breadcrumbs>
+      <item name="ICAT Utils" href="index.html"/>
+    </breadcrumbs>
+  
+    <menu name="Contents">
+      <item name="Overview" href="overview.html"/>
+      <item name="Issue Tracking" href="issue-tracking.html"/>
+      <item name="Release Notes" href="release-notes.html"/>
+      <item name="Javadoc" href="apidocs/index.html"/>
+    </menu>
+   
+    <menu ref="reports"/>
+ 
+  </body>
+</project>

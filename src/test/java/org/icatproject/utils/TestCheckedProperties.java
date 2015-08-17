@@ -37,6 +37,11 @@ public class TestCheckedProperties {
 	public final void testPropertiesFromResources() throws Exception {
 		s_properties.loadFromFile("Doesn't exist");
 	}
+	
+	@Test(expected = CheckedPropertyException.class)
+	public final void testEmpty() throws Exception {
+		 s_properties.getString("empty");
+	}
 
 	@Test
 	public final void testGetString1() throws Exception {
@@ -51,6 +56,11 @@ public class TestCheckedProperties {
 	@Test
 	public final void testDbl1() throws Exception {
 		assertEquals(1E23, s_properties.getDouble("dbl1"), 1.);
+	}
+
+	@Test
+	public final void testTrail() throws Exception {
+		assertEquals("aardvark", s_properties.getString("animal"));
 	}
 
 	@Test

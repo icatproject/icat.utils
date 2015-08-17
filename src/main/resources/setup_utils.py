@@ -214,7 +214,13 @@ class Actions(object):
         dProps += " --maxpoolsize 32 --ping"
         self._asadmin('create-jdbc-connection-pool ' + dProps + ' --property ' + dbProperties + ' ' + name, printOutput=True)
         self._asadmin("create-jdbc-resource --connectionpoolid " + name + " jdbc/" + name)
-                 
+    
+    def createJMSResource(self, type, name):
+        self._asadmin("create-jms-resource --restype " + type + " " + name, printOutput=True)
+    
+    def deleteJMSResource(self, name):
+        self._asadmin("delete-jms-resource " + name, tolerant=True)
+                     
     def addFileRealmUser(self, username, password, group):
         if self.getAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping") == "false":
             self.setAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping", "true")
@@ -406,8 +412,8 @@ class Actions(object):
                 return line.split()[0]
             
     def restartApp(self, appName):
-        self.disable(appName)
-        self.enable(appName)
+        self.disableApp(appName)
+        self.enableApp(appName)
         
     def enableApp(self, appName):
         self._asadmin("enable " + appName)

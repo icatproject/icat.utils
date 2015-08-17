@@ -12,15 +12,15 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 /**
- * An extension of the Properties class that provides methods to convert values to a specifc type
- * and throw an exception if this cannot be done.
+ * Similar to the java.util.Properties class but provides methods to convert
+ * values to a specific type and throw an exception if this cannot be done.
  * 
- * For example the call getNonNegativeInt() will return an integer which is greater than or equal to
- * zero.
+ * For example the call getNonNegativeInt() will return an integer which is
+ * greater than or equal to zero.
  */
-public class CheckedProperties extends Properties {
+public class CheckedProperties {
 
-	private static final long serialVersionUID = 1L;
+	private Properties properties = new Properties();
 
 	public class CheckedPropertyException extends Exception {
 
@@ -42,13 +42,14 @@ public class CheckedProperties extends Properties {
 	 *            The name of the file to use to
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public void loadFromFile(String fileName) throws CheckedPropertyException {
 		InputStream fis = null;
 
 		try {
 			fis = new FileInputStream(fileName);
-			load(fis);
+			properties.load(fis);
 			this.fileName = fileName;
 		} catch (IOException e) {
 			throw new CheckedPropertyException("Unable to load properties from " + fileName);
@@ -70,6 +71,7 @@ public class CheckedProperties extends Properties {
 	 *            The name of the resource
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public void loadFromResource(String name) throws CheckedPropertyException {
 		URL url = this.getClass().getClassLoader().getResource(name);
@@ -91,9 +93,13 @@ public class CheckedProperties extends Properties {
 	 *             if the property is not found
 	 */
 	public String getString(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
+		}
+		value = value.trim();
+		if (value.isEmpty()) {
+			throw new CheckedPropertyException(name + " may not be empty in " + this.fileName);
 		}
 		return value;
 	}
@@ -107,9 +113,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public int getPositiveInt(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -135,9 +142,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public int getNonNegativeInt(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -163,9 +171,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public double getDouble(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -186,9 +195,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public boolean getBoolean(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -206,9 +216,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public boolean getBoolean(String name, boolean defaultValue) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			return defaultValue;
 		}
@@ -224,9 +235,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public URL getURL(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -244,10 +256,10 @@ public class CheckedProperties extends Properties {
 	 * @param name
 	 *            name the name of the property
 	 * 
-	 * @return true if the property with the specified name exists esel false
+	 * @return true if the property with the specified name exists else false
 	 */
 	public boolean has(String name) {
-		return getProperty(name) != null;
+		return properties.getProperty(name) != null;
 	}
 
 	/**
@@ -259,9 +271,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public File getFile(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -277,9 +290,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public Path getPath(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -295,9 +309,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public long getNonNegativeLong(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
@@ -314,7 +329,7 @@ public class CheckedProperties extends Properties {
 		}
 
 	}
-	
+
 	/**
 	 * Return value as an integer. It will be greater than zero.
 	 * 
@@ -324,9 +339,10 @@ public class CheckedProperties extends Properties {
 	 * @return the value of the property
 	 * 
 	 * @throws CheckedPropertyException
+	 *             if unable to carry out request
 	 */
 	public long getPositiveLong(String name) throws CheckedPropertyException {
-		String value = getProperty(name);
+		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}

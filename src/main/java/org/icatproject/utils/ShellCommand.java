@@ -9,9 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A wrapper around ProcessBuilder to allow stdout and stderr to be kept separate without risk of
- * blocking. It throws no exceptions - it is the responsibility of the caller to look at the exit
- * code and at stderr and stdout to see if it worked as expected.
+ * A wrapper around ProcessBuilder to allow stdout and stderr to be kept
+ * separate without risk of blocking. It throws no exceptions - it is the
+ * responsibility of the caller to look at the exit code and at stderr and
+ * stdout to see if it worked as expected.
  */
 public class ShellCommand {
 
@@ -23,6 +24,7 @@ public class ShellCommand {
 	 * Construct a ShellCommand
 	 * 
 	 * @param args
+	 *            argument
 	 */
 	public ShellCommand(String... args) {
 		List<String> arglist = new ArrayList<String>(args.length);
@@ -35,20 +37,28 @@ public class ShellCommand {
 	/**
 	 * Construct a ShellCommand
 	 * 
+	 * @param home
+	 *            working directory to use
+	 * 
+	 * @param inputStream
+	 *            stream for process to read from
+	 * 
 	 * @param args
+	 *            argument
 	 */
-	public ShellCommand(Path home, InputStream is, String... args) {
+	public ShellCommand(Path home, InputStream inputStream, String... args) {
 		List<String> arglist = new ArrayList<String>(args.length);
 		for (String arg : args) {
 			arglist.add(arg);
 		}
-		init(home, is, arglist);
+		init(home, inputStream, arglist);
 	}
 
 	/**
 	 * Construct a ShellCommand
 	 * 
 	 * @param arglist
+	 *            list or arguments
 	 */
 	public ShellCommand(List<String> arglist) {
 		init(null, null, arglist);
@@ -147,8 +157,8 @@ public class ShellCommand {
 	}
 
 	/**
-	 * This considers an error to be a non-zero exit code or a non-empty stderr. This will not be
-	 * valid for all commands.
+	 * This considers an error to be a non-zero exit code or a non-empty stderr.
+	 * This will not be valid for all commands.
 	 * 
 	 * @return true if it appears that the command failed else false
 	 */
@@ -157,8 +167,8 @@ public class ShellCommand {
 	}
 
 	/**
-	 * Returns an error message based on the exit code and what was returned in stderr if it appears
-	 * that there was an error else an empty string.
+	 * Returns an error message based on the exit code and what was returned in
+	 * stderr if it appears that there was an error else an empty string.
 	 * 
 	 * @return an error message
 	 */
