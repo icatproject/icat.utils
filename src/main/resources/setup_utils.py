@@ -209,7 +209,7 @@ class Actions(object):
     def registerDB(self, driver, dbProperties, name):
         dProps = "--datasourceclassname " + driver
         if driver.startswith("oracle"):
-            result += " --validateatmostonceperiod=60 --validationtable=dual --creationretryattempts=10 --isconnectvalidatereq=true"
+            dProps += " --validateatmostonceperiod=60 --validationtable=dual --creationretryattempts=10 --isconnectvalidatereq=true"
         dProps += " --restype javax.sql.DataSource --failconnection=true --steadypoolsize 2"
         dProps += " --maxpoolsize 32 --ping"
         self._asadmin('create-jdbc-connection-pool ' + dProps + ' --property ' + dbProperties + ' ' + name, printOutput=True)
