@@ -59,10 +59,37 @@
 			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.icatproject</groupId>
+			<artifactId>icat.client</artifactId>
+			<version>4.5.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.18.1</version>
+				<configuration>
+					<systemPropertyVariables>
+						<serverUrl>${serverUrl}</serverUrl>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.18.1</version>
+				<configuration>
+					<systemPropertyVariables>
+						<serverUrl>${serverUrl}</serverUrl>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
