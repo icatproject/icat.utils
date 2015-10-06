@@ -1,5 +1,7 @@
 package org.icatproject.utils;
 
+import static org.junit.Assert.assertTrue;
+
 import org.icatproject.IcatException_Exception;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -9,6 +11,7 @@ public class TestICATGetter {
 	@BeforeClass
 	public static void beforeClass() {
 		serverUrl = System.getProperty("serverUrl");
+		System.out.println("serverUrl is " + serverUrl);
 		if (serverUrl == null) {
 			throw new NullPointerException();
 		}
@@ -24,12 +27,27 @@ public class TestICATGetter {
 	@Test
 	public final void testGood() throws Exception {
 		ICATGetter.getService(serverUrl);
-
 	}
 
 	@Test
-	public final void testGood3() throws Exception {
-		ICATGetter.getService(serverUrl + "/icat/ICAT?wsdl");
+	public final void testGood3() {
+
+		boolean found = false;
+
+		try {
+			ICATGetter.getService(serverUrl + "/icat/ICAT?wsdl");
+			found = true;
+		} catch (IcatException_Exception e) {
+
+		}
+		try {
+			ICATGetter.getService(serverUrl + "/ICATService/ICAT?wsdl");
+			found = true;
+		} catch (IcatException_Exception e) {
+
+		}
+		assertTrue(found);
+
 	}
 
 	@Test(expected = IcatException_Exception.class)

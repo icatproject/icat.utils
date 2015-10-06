@@ -17,7 +17,7 @@ def abort(msg):
     print >> sys.stderr, "\n", msg, "\nSetup is not complete\n"
     sys.exit(1)
         
-def getActions(self, file_name, required, binDir=False, appDir=False):
+def getActions(binDir=False, appDir=False):
     if not os.path.exists ("setup"): abort ("This must be run from the unpacked distribution directory")
     parser = OptionParser("usage: %prog [options] configure | install | uninstall")
     try:
@@ -47,31 +47,11 @@ def getActions(self, file_name, required, binDir=False, appDir=False):
     if binDir and not os.path.isdir(os.path.expanduser(options.binDir)): abort("Please create directory " + options.binDir + " or specify --binDir")
     if appDir and not os.path.isdir(os.path.expanduser(options.appDir)): abort("Please create directory " + options.appDir + " or specify --appDir")
     
-    if not os.path.exists(file_name):
-        shutil.copy(file_name + ".example", file_name) 
-        if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-        abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
-    if os.stat(file_name).st_mode & stat.S_IROTH:
-        if platform.system() == "Windows":
-            print "Warning: '" + file_name + "' should not be world readable"
-        else:
-            os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-            print "'" + file_name + "' mode changed to 0600"
-    props = self.getProperties(file_name, required + ["secure","port","home", "container"])
-    
-    if props["secure"].upper() == "TRUE": secure = True
-    elif props["secure"].upper() == "FALSE": secure = False
-    else : abort ("Secure must be true or false")
-    
-    if props["container"].upper() == "GLASSFISH": actions = GlassfishActions(props, options.verbose)
-    elif props["container"].upper() == "WILDFLY": actions = WildflyActions(props, options.verbose)
-    else : abort ("container must be glassfish or wildfly")
-    
-    return options, arg, props, actions 
+    return Actions(options.verbose), options, arg
 
-class GlassfishActions(object):
+class Actions(object):
     
-    def __init__(self, props, verbosity):
+    def __init__(self, verbosity):
         self.verbosity = verbosity
         self.asadminCommand = None
         self.domain = None
@@ -139,8 +119,19 @@ class GlassfishActions(object):
         if self.clashes:
             abort("Please edit configuration files and try again as " + str(self.clashes) + " errors were reported.")
                         
-    def getGlassfish(self):
-
+    def getGlassfish(self, file_name, required):
+        if not os.path.exists(file_name):
+            shutil.copy(file_name + ".example", file_name) 
+            if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+            abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
+        if os.stat(file_name).st_mode & stat.S_IROTH:
+            if platform.system() == "Windows":
+                print "Warning: '" + file_name + "' should not be world readable"
+            else:
+                os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+                print "'" + file_name + "' mode changed to 0600"
+        props = self.getProperties(file_name, required)
+        
         glassfish = props["glassfish"]
         if not os.path.exists(glassfish): abort("glassfish directory " + glassfish + " specified in " + file_name + " does not exist")
         

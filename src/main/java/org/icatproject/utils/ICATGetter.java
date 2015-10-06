@@ -3,6 +3,8 @@ package org.icatproject.utils;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import javax.xml.ws.WebServiceException;
+
 import org.icatproject.ICAT;
 import org.icatproject.ICATService;
 import org.icatproject.IcatException;
@@ -25,6 +27,7 @@ public class ICATGetter {
 	 * @throws IcatException_Exception
 	 */
 	public static ICAT getService(String urlString) throws IcatException_Exception {
+
 		if (urlString == null) {
 			throwSessionException("Argument to constructor must not be null");
 		}
@@ -36,12 +39,6 @@ public class ICATGetter {
 			throwSessionException("Invalid URL: " + urlString);
 		}
 
-		try {
-			System.out.println("'" + new URL(urlString).getFile() + "'");
-		} catch (MalformedURLException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
 		ICAT icatService;
 		if (emptyFile) {
 			for (String suffix : suffices) {
@@ -57,7 +54,13 @@ public class ICATGetter {
 					return icatService;
 				} catch (MalformedURLException e) {
 					throwSessionException("Invalid URL");
+				} catch (WebServiceException e) {
+					Throwable cause = e.getCause();
+					if (cause != null && cause.getMessage().contains("security")) {
+						throwSessionException(cause.getMessage());
+					}
 				} catch (Exception e) {
+					throwSessionException(e.getMessage());
 				}
 			}
 		} else {
@@ -67,7 +70,13 @@ public class ICATGetter {
 				return icatService;
 			} catch (MalformedURLException e) {
 				throwSessionException("Invalid URL: " + urlString);
+			} catch (WebServiceException e) {
+				Throwable cause = e.getCause();
+				if (cause != null && cause.getMessage().contains("security")) {
+					throwSessionException(cause.getMessage());
+				}
 			} catch (Exception e) {
+				throwSessionException(e.getMessage());
 			}
 
 		}
