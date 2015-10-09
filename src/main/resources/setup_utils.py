@@ -11,13 +11,47 @@ from optparse import OptionParser
 import stat
 import glob
 import platform
+import zipfile
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
     print >> sys.stderr, "\n", msg, "\nSetup is not complete\n"
     sys.exit(1)
-        
-def getActions(binDir=False, appDir=False):
+    
+def getProperties(fileName, needed):
+     """Read properties files and check that the properties in the needed list are present"""
+ 
+     if not os.path.exists(fileName): 
+         abort (fileName + " file not found - please run './setup configure'")
+     
+     p = re.compile(r"")
+     f = open(fileName)
+     props = {}
+     for line in f:
+         line = line.strip()
+         if line and not line.startswith("#") and not line.startswith("!"):
+             nfirst = len(line)
+             for sep in [r"\s*=\s*", r"\s*:\s*", r"\s+"]:
+                 match = re.search(sep, line)
+                 if match and match.start() < nfirst: 
+                     nfirst = match.start()
+                     nlast = match.end()
+             if nfirst == len(line):
+                 key = line
+                 value = ""
+             else:
+                 key = line[:nfirst]
+                 value = line[nlast:]
+             props[key] = value
+     f.close()
+     
+     for item in needed:
+         if (item not in props):
+             abort(item + " must be specified in " + fileName)
+            
+     return props
+    
+def getActions(file_name, required, binDir=False, appDir=False):
     if not os.path.exists ("setup"): abort ("This must be run from the unpacked distribution directory")
     parser = OptionParser("usage: %prog [options] configure | install | uninstall")
     try:
@@ -47,19 +81,76 @@ def getActions(binDir=False, appDir=False):
     if binDir and not os.path.isdir(os.path.expanduser(options.binDir)): abort("Please create directory " + options.binDir + " or specify --binDir")
     if appDir and not os.path.isdir(os.path.expanduser(options.appDir)): abort("Please create directory " + options.appDir + " or specify --appDir")
     
-    return Actions(options.verbose), options, arg
+    if not os.path.exists(file_name):
+        shutil.copy(file_name + ".example", file_name) 
+        if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+        abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
+    if os.stat(file_name).st_mode & stat.S_IROTH:
+        if platform.system() == "Windows":
+            print "Warning: '" + file_name + "' should not be world readable"
+        else:
+            os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+            print "'" + file_name + "' mode changed to 0600"
+    props = getProperties(file_name, required + ["secure", "home", "container", "port"])
+    
+    if props["secure"].lower() == "true": secure = True
+    elif props["secure"].lower() == "false": secure = False
+    else : abort ("Secure must be true or false")
+    
+    container = props["container"].lower()
+    if container == "glassfish": actions = GlassfishActions(props, options)
+    elif container == "wildfly": actions = WildflyActions(props, options)
+    else : abort ("container must be glassfish or wildfly")
+    
+    fix_war(secure, container)
+    
+    return actions, arg, props
 
+def fix_war(secure, container):
+    files = glob.glob("*.war")
+    if len(files) != 1: abort("Exactly one war file must be present")
+    zipfile.ZipFile(files[0]).extractall("unzipped")
+    
 class Actions(object):
     
-    def __init__(self, verbosity):
-        self.verbosity = verbosity
-        self.asadminCommand = None
-        self.domain = None
-        self.config_path = None
-        self.lib_path = None
+    def __init__(self, options):
+        self.verbosity = options.verbose
+        try: self.binDir = os.path.expanduser(options.binDir)
+        except: pass
+        try: self.appDir = os.path.expanduser(options.appDir)
+        except: pass
         self.clashes = 0
-        self.version = None
         
+    def getBinDir(self):
+        return self.binDir
+    
+    def execute(self, cmd):    
+        if platform.system() == "Windows": 
+            cmd = cmd.split()
+            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:
+            cmd = shlex.split(cmd)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stringOut = StringIO.StringIO()
+       
+        mstdout = Tee(proc.stdout, stringOut)
+        mstdout.start()
+        stringErr = StringIO.StringIO()
+        mstderr = Tee(proc.stderr, stringErr)
+        mstderr.start()
+        rc = proc.wait()
+    
+        mstdout.join()
+        mstderr.join()
+        
+        out = stringOut.getvalue().strip()
+        stringOut.close()
+        
+        err = stringErr.getvalue().strip()
+        stringErr.close()
+        
+        return out, err, rc
+    
     def configFileExists(self, file):
         return os.path.exists(os.path.join(self.config_path, file))
         
@@ -96,11 +187,11 @@ class Actions(object):
                     print "Please edit", file_name, "to meet your requirements"
             abort("... and then re-run the command")
         if dir:
-            props = self.getProperties(os.path.join(dir, file_name), [])
-            example = self.getProperties(os.path.join(dir + ".example", file_name), [])
+            props = getProperties(os.path.join(dir, file_name), [])
+            example = getProperties(os.path.join(dir + ".example", file_name), [])
         else:
-            props = self.getProperties(file_name, [])
-            example = self.getProperties(file_name + ".example", [])
+            props = getProperties(file_name, [])
+            example = getProperties(file_name + ".example", [])
         for key in expected:
             prop = props.get(key)
             if not prop:
@@ -118,22 +209,167 @@ class Actions(object):
     def checkNoErrors(self):
         if self.clashes:
             abort("Please edit configuration files and try again as " + str(self.clashes) + " errors were reported.")
-                        
-    def getGlassfish(self, file_name, required):
-        if not os.path.exists(file_name):
-            shutil.copy(file_name + ".example", file_name) 
-            if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-            abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
-        if os.stat(file_name).st_mode & stat.S_IROTH:
-            if platform.system() == "Windows":
-                print "Warning: '" + file_name + "' should not be world readable"
+  
+    def installFile(self, file, dir=None):
+        if not dir: dir = self.config_path
+        if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
+        if not os.path.exists(file): abort (file + " not found")
+        dest = os.path.join(dir, file)
+        if os.path.exists(dest):
+            diff = not filecmp.cmp(file, dest)
+            if diff:
+                if os.path.getmtime(file) > os.path.getmtime(dest): 
+                    shutil.copy(file , dir)
+                    print "\n", dest, "has been overwritten"
+                else:
+                   abort(dest + " is newer than " + file)
+        else:
+            shutil.copy(file , dir)
+            if self.verbosity:
+                print "\n", file, "copied to", dir
+            
+    def removeFile(self, file, dir=None):
+        if not dir: dir = self.config_path
+        dest = os.path.join(dir, file)
+        if os.path.exists(dest): 
+            os.remove(dest)
+            if self.verbosity:
+                print "\n", file, "removed from", dir
+                
+    def installDir(self, file, dir=None):
+        if not dir: dir = self.config_path
+        if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
+        if not os.path.exists(file): abort (file + " not found") 
+        if not os.path.isdir(file): abort (file + " is not a directory")
+        dest = os.path.join(dir, file)
+        if os.path.exists(dest):
+            if (os.path.getmtime(file) - os.path.getmtime(dest)) > -.001:  # Directory times from python are odd  
+                shutil.rmtree(dest)
+                shutil.copytree(file , dest)
+                print "\n", dest, "has been overwritten"
             else:
-                os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-                print "'" + file_name + "' mode changed to 0600"
-        props = self.getProperties(file_name, required)
+                print os.path.getmtime(file) - os.path.getmtime(dest)
+                abort("Directory " + dest + " is newer than " + file)
+        else: 
+            shutil.copytree(file , dest)
+            if self.verbosity:
+                print "\n", file, "copied to", dir
+            
+    def removeDir(self, file, dir=None):
+        if not dir: dir = self.config_path
+        dest = os.path.join(dir, file)
+        if os.path.exists(dest): 
+            shutil.rmtree(dest)
+            if self.verbosity:
+                print "\n", directory, "removed from", dir
+ 
+    
+class WildflyActions(Actions):
+    def __init__(self, props, options):
+        super(WildflyActions, self).__init__(options)
         
-        glassfish = props["glassfish"]
-        if not os.path.exists(glassfish): abort("glassfish directory " + glassfish + " specified in " + file_name + " does not exist")
+        wildfly = props["home"]
+        if not os.path.exists(wildfly): abort("wildfly directory " + wildfly + " does not exist")
+        
+        self.cliCommand = os.path.join(wildfly, "bin", "jboss-cli.sh -c")
+        
+        cmd = self.cliCommand + " --version"
+        out, err, rc = self.execute(cmd)
+        if rc: abort(out + err)
+        for line in out.splitlines():
+            if line.startswith("JBoss AS product"): self.version = line[18:]
+        if self.verbosity: print "You are using", self.version
+        
+        self.config_path = os.path.join(wildfly, "config") 
+        if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
+        
+    def getAppName(self, app):
+        cmd = self.cliCommand + " " + "'ls deployment'"
+        out, err, rc = self.execute(cmd)
+        if rc: abort(err)
+        for line in out.splitlines():
+            if (line.startswith(app + "-")):
+                return line
+            
+    def _cli(self, command, tolerant=False, printOutput=False):
+        cmd = self.cliCommand + " '" + command + "'"
+        if self.verbosity: print "\nexecute: " + cmd 
+        out, err, rc = self.execute(cmd)
+        if self.verbosity > 1 or printOutput:
+            if out: print out
+            if err: print err
+     
+        if not tolerant and rc:
+            if not self.verbosity: print cmd, " ->"
+            abort(err)
+            
+    def deploy(self, contextroot=None, deploymentorder=100, libraries=[]):
+        files = glob.glob("*.war")
+        if len(files) != 1: abort("Exactly one war file must be present")
+        cmd = self.cliCommand + " " + "'deploy"
+#         if self.version >= 4:
+#             cmd = cmd + " --deploymentorder " + str(deploymentorder)
+#         if contextroot:
+#             cmd = cmd + " --contextroot " + contextroot
+#         if libraries:
+#             libstring = ""
+#             for library in libraries:
+#                 path = os.path.join(self.lib_path, library)
+#                 libs = glob.glob(path)
+#                 if len(libs) != 1: abort("Exactly one library must match " + path)
+#                 libadd = os.path.basename(libs[0])
+#                 if libstring:
+#                     libstring += "," + libadd
+#                 else:
+#                     libstring = "--libraries " + libadd
+#             cmd = cmd + " " + libstring
+        cmd = cmd + " " + files[0] + "'"
+        if self.verbosity: print "\nexecute: " + cmd 
+        out, err, rc = self.execute(cmd)
+        if self.verbosity > 1 or rc:
+            if out: print out
+        if err:
+            for line in err.splitlines():
+                line = line.strip()
+                if line:
+                    if line.startswith("PER01"): continue
+                    print line
+        if rc: abort("Deployment failed")
+        
+    def undeploy(self, appName):
+        self._cli("undeploy " + appName)
+        
+    def unregisterDB(self, name):
+        self._cli("/subsystem=datasources/data-source=" + name + ":remove", tolerant=True)
+                
+    def registerDB(self, name, vendor, driver, url, username, password):
+        dProps = "driver-name=" + driver
+        dProps += ",jndi-name=java:/jdbc/" + name
+        dProps += ",connection-url=" + url
+        dProps += ",user-name=" + username
+        dProps += ",password=" + password
+        dProps += ",min-pool-size=5,max-pool-size=15,enabled=true,validate-on-match=true"
+        dProps += ",valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"
+        dProps += ",exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"
+        print dProps
+        self._cli("/subsystem=datasources/data-source=" + name + ":add(" + dProps + ")", printOutput=True)
+      
+    def createJMSResource(self, type, name):
+#        self._clidmin("create-jms-resource --restype " + type + " " + name, printOutput=True)
+        pass
+    
+    def deleteJMSResource(self, name):
+#        self._cli("delete-jms-resource " + name, tolerant=True)
+        pass
+    
+        
+class GlassfishActions(Actions):
+    
+    def __init__(self, props, verbosity):
+        super(GlassfishActions, self).__init__(verbosity)
+        
+        glassfish = props["home"]
+        if not os.path.exists(glassfish): abort("glassfish directory " + glassfish + " does not exist")
         
         self.asadminCommand = os.path.join(glassfish, "bin", "asadmin") + " --port " + props["port"]
         
@@ -162,8 +398,7 @@ class Actions(object):
         self.version = int(vline[:pos].split()[-1].split(".")[0])
         if self.verbosity: print "You are using Glassfish version", self.version
         
-        return props
-    
+  
     def deleteFileRealmUser(self, username):
         self._asadmin("delete-file-user " + username, tolerant=True)
         
@@ -206,13 +441,16 @@ class Actions(object):
         self._asadmin("delete-jdbc-resource jdbc/" + name, tolerant=True)
         self._asadmin("delete-jdbc-connection-pool " + name, tolerant=True)
                 
-    def registerDB(self, driver, dbProperties, name):
-        dProps = "--datasourceclassname " + driver
+    def registerDB(self, name, vendor, driver, url, username, password):
+        dProps = "url=" + url.replace(":", "\\\\:")
+        dProps += ":user=" + username
+        dProps += ":password=" + password.replace(":", "\\\\:")
+      
+        eProps = " --restype javax.sql.DataSource --failconnection=true --steadypoolsize 2"
+        eProps += " --maxpoolsize 32 --ping"
         if driver.startswith("oracle"):
-            dProps += " --validateatmostonceperiod=60 --validationtable=dual --creationretryattempts=10 --isconnectvalidatereq=true"
-        dProps += " --restype javax.sql.DataSource --failconnection=true --steadypoolsize 2"
-        dProps += " --maxpoolsize 32 --ping"
-        self._asadmin('create-jdbc-connection-pool ' + dProps + ' --property ' + dbProperties + ' ' + name, printOutput=True)
+            eProps += " --validateatmostonceperiod=60 --validationtable=dual --creationretryattempts=10 --isconnectvalidatereq=true"
+        self._asadmin('create-jdbc-connection-pool --datasourceclassname ' + driver + ' --property ' + dProps + ' ' + eProps + " " + name, printOutput=True)
         self._asadmin("create-jdbc-resource --connectionpoolid " + name + " jdbc/" + name)
     
     def createJMSResource(self, type, name):
@@ -243,9 +481,9 @@ class Actions(object):
         self._asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
         
-    def deploy(self, file, contextroot=None, deploymentorder=100, libraries=[]):
-        files = glob.glob(file)
-        if len(files) != 1: abort("Exactly one file must match " + file)
+    def deploy(self, contextroot=None, deploymentorder=100, libraries=[]):
+        files = glob.glob("*.war")
+        if len(files) != 1: abort("Exactly one war file must be present")
         cmd = self.asadminCommand + " " + "deploy"
         if self.version >= 4:
             cmd = cmd + " --deploymentorder " + str(deploymentorder)
@@ -275,68 +513,7 @@ class Actions(object):
                     if line.startswith("PER01"): continue
                     print line
         if rc: abort("Deployment failed")              
-    
-    def getProperties(self, fileName, needed):
-        """Read properties files and check that the properties in the needed list are present"""
-    
-        if not os.path.exists(fileName): 
-            abort (fileName + " file not found - please run './setup configure'")
-        
-        p = re.compile(r"")
-        f = open(fileName)
-        props = {}
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and not line.startswith("!"):
-                nfirst = len(line)
-                for sep in [r"\s*=\s*", r"\s*:\s*", r"\s+"]:
-                    match = re.search(sep, line)
-                    if match and match.start() < nfirst: 
-                        nfirst = match.start()
-                        nlast = match.end()
-                if nfirst == len(line):
-                    key = line
-                    value = ""
-                else:
-                    key = line[:nfirst]
-                    value = line[nlast:]
-                props[key] = value
-        f.close()
-        
-        for item in needed:
-            if (item not in props):
-                abort(item + " must be specified in " + fileName)
-               
-        return props
-    
-    def execute(self, cmd):
-        
-        if platform.system() == "Windows": 
-            cmd = cmd.split()
-            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        else:
-            cmd = shlex.split(cmd)
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stringOut = StringIO.StringIO()
        
-        mstdout = Tee(proc.stdout, stringOut)
-        mstdout.start()
-        stringErr = StringIO.StringIO()
-        mstderr = Tee(proc.stderr, stringErr)
-        mstderr.start()
-        rc = proc.wait()
-    
-        mstdout.join()
-        mstderr.join()
-        
-        out = stringOut.getvalue().strip()
-        stringOut.close()
-        
-        err = stringErr.getvalue().strip()
-        stringErr.close()
-        
-        return out, err, rc
-    
     def _asadmin(self, command, tolerant=False, printOutput=False):
         cmd = self.asadminCommand + " " + command
         if self.verbosity: print "\nexecute: " + cmd 
@@ -348,61 +525,7 @@ class Actions(object):
         if not tolerant and rc:
             if not self.verbosity: print cmd, " ->"
             abort(err)
-    
-    def installFile(self, file, dir=None):
-        if not dir: dir = self.config_path
-        if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
-        if not os.path.exists(file): abort (file + " not found")
-        dest = os.path.join(dir, file)
-        if os.path.exists(dest):
-            diff = not filecmp.cmp(file, dest)
-            if diff:
-                if os.path.getmtime(file) > os.path.getmtime(dest): 
-                    shutil.copy(file , dir)
-                    print "\n", dest, "has been overwritten"
-                else:
-                   abort(dest + " is newer than " + file)
-        else:
-            shutil.copy(file , dir)
-            if self.verbosity:
-                print "\n", file, "copied to", dir
-            
-    def removeFile(self, file, dir=None):
-        if not dir: dir = self.config_path
-        dest = os.path.join(dir, file)
-        if os.path.exists(dest): 
-            os.remove(dest)
-            if self.verbosity:
-                print "\n", file, "removed from", dir
-                
-                
-    def installDir(self, file, dir=None):
-        if not dir: dir = self.config_path
-        if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
-        if not os.path.exists(file): abort (file + " not found") 
-        if not os.path.isdir(file): abort (file + " is not a directory")
-        dest = os.path.join(dir, file)
-        if os.path.exists(dest):
-            if (os.path.getmtime(file) - os.path.getmtime(dest)) > -.001:  # Directory times from python are odd  
-                shutil.rmtree(dest)
-                shutil.copytree(file , dest)
-                print "\n", dest, "has been overwritten"
-            else:
-                print os.path.getmtime(file) - os.path.getmtime(dest)
-                abort("Directory " + dest + " is newer than " + file)
-        else: 
-            shutil.copytree(file , dest)
-            if self.verbosity:
-                print "\n", file, "copied to", dir
-            
-    def removeDir(self, file, dir=None):
-        if not dir: dir = self.config_path
-        dest = os.path.join(dir, file)
-        if os.path.exists(dest): 
-            shutil.rmtree(dest)
-            if self.verbosity:
-                print "\n", directory, "removed from", dir
-            
+           
     def getAppName(self, app):
         cmd = self.asadminCommand + " " + "list-applications"
         out, err, rc = self.execute(cmd)
