@@ -121,6 +121,10 @@ class Actions(object):
         except: pass
         self.clashes = 0
         
+    def restartApp(self, appName):
+        self.disableApp(appName)
+        self.enableApp(appName)
+        
     def getBinDir(self):
         return self.binDir
     
@@ -282,7 +286,13 @@ class WildflyActions(Actions):
         
         self.config_path = os.path.join(wildfly, "config") 
         if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
+    
+    def enableApp(self, appName):
+        self._cli("deploy --name=" + appName)
         
+    def disableApp(self, appName):
+        self._cli("undeploy " + appName + " --keep-content", tolerant=True, printOutput=True)
+    
     def getAppName(self, app):
         cmd = self.cliCommand + " " + "'ls deployment'"
         out, err, rc = self.execute(cmd)
@@ -355,13 +365,11 @@ class WildflyActions(Actions):
         self._cli("/subsystem=datasources/data-source=" + name + ":add(" + dProps + ")", printOutput=True)
       
     def createJMSResource(self, type, name):
-#        self._clidmin("create-jms-resource --restype " + type + " " + name, printOutput=True)
-        pass
+        self._cli("jms-topic add --topic-address=" + name + " --entries=" + name, printOutput=True)
     
     def deleteJMSResource(self, name):
-#        self._cli("delete-jms-resource " + name, tolerant=True)
-        pass
-    
+        self._cli("jms-topic remove --topic-address=" + name, tolerant=True)
+        self._cli("reload")
         
 class GlassfishActions(Actions):
     
@@ -533,10 +541,6 @@ class GlassfishActions(Actions):
         for line in out.splitlines():
             if (line.startswith(app + "-")):
                 return line.split()[0]
-            
-    def restartApp(self, appName):
-        self.disableApp(appName)
-        self.enableApp(appName)
         
     def enableApp(self, appName):
         self._asadmin("enable " + appName)
