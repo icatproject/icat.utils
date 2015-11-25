@@ -82,7 +82,7 @@ public class CheckedProperties {
 	}
 
 	/**
-	 * Return value as a string. The string will not be null.
+	 * Return value as a string. The string will not be null or empty.
 	 * 
 	 * @param name
 	 *            the name of the property
@@ -96,6 +96,29 @@ public class CheckedProperties {
 		String value = properties.getProperty(name);
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
+		}
+		value = value.trim();
+		if (value.isEmpty()) {
+			throw new CheckedPropertyException(name + " may not be empty in " + this.fileName);
+		}
+		return value;
+	}
+	
+	/**
+	 * Return value as a string. The string will not be null or empty unless the default value is used.
+	 * 
+	 * @param name
+	 *            the name of the property
+	 * 
+	 * @return the value of the property
+	 * 
+	 * @throws CheckedPropertyException
+	 *             if the property is found but is empty
+	 */
+	public String getString(String name, String defaultValue) throws CheckedPropertyException {
+		String value = properties.getProperty(name);
+		if (value == null) {
+			return defaultValue;
 		}
 		value = value.trim();
 		if (value.isEmpty()) {
@@ -359,5 +382,7 @@ public class CheckedProperties {
 		}
 
 	}
+
+	
 
 }
