@@ -12,6 +12,7 @@ import stat
 import glob
 import platform
 import zipfile
+from xml.dom.minidom import parse
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
@@ -102,24 +103,37 @@ def getActions(file_name, required, binDir=False, appDir=False):
     elif container == "wildfly": actions = WildflyActions(props, options)
     else : abort ("container must be glassfish or wildfly")
     
-    fix_war(secure, container)
-    
     return actions, arg, props
 
-def fix_war(secure, container):
-    files = glob.glob("*.war")
-    if len(files) != 1: abort("Exactly one war file must be present")
-    zipfile.ZipFile(files[0]).extractall("unzipped")
-    
-class Actions(object):
-    
-    def __init__(self, options):
+class Actions(object):   
+    def __init__(self, props, options):
         self.verbosity = options.verbose
+        self.secure = props["secure"].lower() == "true"
         try: self.binDir = os.path.expanduser(options.binDir)
         except: pass
         try: self.appDir = os.path.expanduser(options.appDir)
         except: pass
         self.clashes = 0
+        
+    def _zip(self):
+        z = zipfile.ZipFile("zip", "w")
+        for dirName, subdirList, fileList in os.walk("unzipped"):
+            shortd = dirName[9:]
+            for fname in fileList:
+                z.write(os.path.join(dirName, fname), os.path.join(shortd, fname))
+        z.close()
+        files = glob.glob("*.war")
+        os.rename("zip", files[0])
+        shutil.rmtree("unzipped")
+        if self.verbosity:
+            print "\nConverted ", files[0]
+        
+    def _unzip(self):
+        if os.path.exists("unzipped"):
+            shutil.rmtree("unzipped")
+        files = glob.glob("*.war")
+        if len(files) != 1: abort("Exactly one war file must be present")
+        zipfile.ZipFile(files[0]).extractall("unzipped")
         
     def restartApp(self, appName):
         self.disableApp(appName)
@@ -270,7 +284,7 @@ class Actions(object):
     
 class WildflyActions(Actions):
     def __init__(self, props, options):
-        super(WildflyActions, self).__init__(options)
+        super(WildflyActions, self).__init__(props, options)
         
         wildfly = props["home"]
         if not os.path.exists(wildfly): abort("wildfly directory " + wildfly + " does not exist")
@@ -286,6 +300,44 @@ class WildflyActions(Actions):
         
         self.config_path = os.path.join(wildfly, "config") 
         if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
+    
+    def convertWarfile(self, jmsTopicConnectionFactory=None):
+        self._unzip()
+        
+        # Fix the web.xml
+        f = os.path.join("unzipped", "WEB-INF", "web.xml")
+        if os.path.exists(f):
+            with open(f) as fi:
+                doc = parse(fi)
+                tg = doc.getElementsByTagName("transport-guarantee")[0].firstChild
+                if self.secure:
+                    tg.replaceWholeText("CONFIDENTIAL")
+                else:
+                    tg.replaceWholeText("NONE")
+                    
+                wap = doc.getElementsByTagName("web-app")[0]
+                
+                servlet = doc.getElementsByTagName("servlet")[0]
+                sc = servlet.getElementsByTagName("servlet-class")[0].firstChild
+                sc.replaceWholeText("org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher")
+                
+                cp = doc.getElementsByTagName("context-param")
+                if cp:
+                    cp[0].parentNode.removeChild(cp[0])
+                wap.appendChild(doc.createElement("context-param"))
+                cp = wap.getElementsByTagName("context-param")[0]
+                cp.appendChild(doc.createElement("param-name"))
+                cpn = cp.getElementsByTagName("param-name")[0]
+                cpn.appendChild((doc.createTextNode("resteasy.scan")))
+                cp.appendChild(doc.createElement("param-value"))
+                cpv = cp.getElementsByTagName("param-value")[0]
+                cpv.appendChild((doc.createTextNode("true")))
+         
+            with open(f, "w") as fi:
+                fi.write(doc.toprettyxml(indent="  "))
+                
+        self._zip()
+    
     
     def enableApp(self, appName):
         self._cli("deploy --name=" + appName)
@@ -313,26 +365,10 @@ class WildflyActions(Actions):
             if not self.verbosity: print cmd, " ->"
             abort(err)
             
-    def deploy(self, contextroot=None, deploymentorder=100, libraries=[]):
+    def deploy(self, deploymentorder=100, libraries=[]):
         files = glob.glob("*.war")
         if len(files) != 1: abort("Exactly one war file must be present")
         cmd = self.cliCommand + " " + "'deploy"
-#         if self.version >= 4:
-#             cmd = cmd + " --deploymentorder " + str(deploymentorder)
-#         if contextroot:
-#             cmd = cmd + " --contextroot " + contextroot
-#         if libraries:
-#             libstring = ""
-#             for library in libraries:
-#                 path = os.path.join(self.lib_path, library)
-#                 libs = glob.glob(path)
-#                 if len(libs) != 1: abort("Exactly one library must match " + path)
-#                 libadd = os.path.basename(libs[0])
-#                 if libstring:
-#                     libstring += "," + libadd
-#                 else:
-#                     libstring = "--libraries " + libadd
-#             cmd = cmd + " " + libstring
         cmd = cmd + " " + files[0] + "'"
         if self.verbosity: print "\nexecute: " + cmd 
         out, err, rc = self.execute(cmd)
@@ -373,8 +409,8 @@ class WildflyActions(Actions):
         
 class GlassfishActions(Actions):
     
-    def __init__(self, props, verbosity):
-        super(GlassfishActions, self).__init__(verbosity)
+    def __init__(self, props, options):
+        super(GlassfishActions, self).__init__(props, options)
         
         glassfish = props["home"]
         if not os.path.exists(glassfish): abort("glassfish directory " + glassfish + " does not exist")
@@ -405,7 +441,49 @@ class GlassfishActions(Actions):
         pos = vline.find("(")
         self.version = int(vline[:pos].split()[-1].split(".")[0])
         if self.verbosity: print "You are using Glassfish version", self.version
+    
+    def convertWarfile(self, jmsTopicConnectionFactory=None):        
+        if not jmsTopicConnectionFactory: jmsTopicConnectionFactory = 'jms/__defaultConnectionFactory'
+        self._unzip()
         
+        # Fix the web.xml
+        f = os.path.join("unzipped", "WEB-INF", "web.xml")
+        if os.path.exists(f):
+            with open(f) as fi:
+                doc = parse(fi)
+                tg = doc.getElementsByTagName("transport-guarantee")[0].firstChild
+                if self.secure:
+                    tg.replaceWholeText("CONFIDENTIAL")
+                else:
+                    tg.replaceWholeText("NONE")
+                    
+                wap = doc.getElementsByTagName("web-app")[0]
+                
+                servlet = doc.getElementsByTagName("servlet")[0]
+                sc = servlet.getElementsByTagName("servlet-class")[0].firstChild
+                sc.replaceWholeText("org.glassfish.jersey.servlet.ServletContainer")
+                
+                cp = doc.getElementsByTagName("context-param")
+                if cp:
+                    cp[0].parentNode.removeChild(cp[0])
+                    
+            with open(f, "w") as fi:
+                fi.write(doc.toxml())
+                
+        # Fix the glassfish-ejb-jar.xml if needed
+        f = os.path.join("unzipped", "WEB-INF", "glassfish-ejb-jar.xml")
+        if os.path.exists(f):
+            with open(f) as fi:
+                doc = parse(fi)
+                mcf = doc.getElementsByTagName("mdb-connection-factory")
+                if mcf:
+                    jndiText = mcf[0].getElementsByTagName("jndi-name")[0].firstChild
+                    jndiText.replaceWholeText(jmsTopicConnectionFactory)
+                    
+            with open(f, "w") as fi:
+                fi.write(doc.toxml())              
+            
+        self._zip()    
   
     def deleteFileRealmUser(self, username):
         self._asadmin("delete-file-user " + username, tolerant=True)
@@ -489,14 +567,12 @@ class GlassfishActions(Actions):
         self._asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
         
-    def deploy(self, contextroot=None, deploymentorder=100, libraries=[]):
+    def deploy(self, deploymentorder=100, libraries=[]):
         files = glob.glob("*.war")
         if len(files) != 1: abort("Exactly one war file must be present")
         cmd = self.asadminCommand + " " + "deploy"
         if self.version >= 4:
             cmd = cmd + " --deploymentorder " + str(deploymentorder)
-        if contextroot:
-            cmd = cmd + " --contextroot " + contextroot
         if libraries:
             libstring = ""
             for library in libraries:

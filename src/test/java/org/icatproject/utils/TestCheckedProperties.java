@@ -37,10 +37,10 @@ public class TestCheckedProperties {
 	public final void testPropertiesFromResources() throws Exception {
 		s_properties.loadFromFile("Doesn't exist");
 	}
-	
+
 	@Test(expected = CheckedPropertyException.class)
 	public final void testEmpty() throws Exception {
-		 s_properties.getString("empty");
+		s_properties.getString("empty");
 	}
 
 	@Test
@@ -51,6 +51,21 @@ public class TestCheckedProperties {
 	@Test(expected = CheckedPropertyException.class)
 	public final void testGetString2() throws Exception {
 		s_properties.getString("noone");
+	}
+
+	@Test
+	public final void testGetString3() throws Exception {
+		assertEquals("wibble", s_properties.getString("noone", "wibble"));
+	}
+
+	@Test
+	public final void testGetString4() throws Exception {
+		assertEquals("", s_properties.getString("noone", ""));
+	}
+
+	@Test
+	public final void testGetString5() throws Exception {
+		assertEquals(null, s_properties.getString("noone", null));
 	}
 
 	@Test
