@@ -115,25 +115,38 @@ class Actions(object):
         except: pass
         self.clashes = 0
         
-    def _zip(self):
+    def _fix_persistence_xml(self, container):
+        f = os.path.join("unzipped", "WEB-INF", "classes", "META-INF", "persistence.xml")
+        if os.path.exists(f):
+            with open(f) as fi:
+                doc = parse(fi)
+                for prop in doc.getElementsByTagName("property"):
+                    if prop.getAttribute("name") == "eclipselink.target-server":
+                        prop.setAttribute("value", container)
+            with open(f, "w") as fi:
+                fi.write(doc.toxml())
+        
+    def _zip(self, war):
         z = zipfile.ZipFile("zip", "w")
         for dirName, subdirList, fileList in os.walk("unzipped"):
             shortd = dirName[9:]
             for fname in fileList:
                 z.write(os.path.join(dirName, fname), os.path.join(shortd, fname))
         z.close()
-        files = glob.glob("*.war")
-        os.rename("zip", files[0])
+        if platform.system() == "Windows": os.remove(war)
+        os.rename("zip", war)
         shutil.rmtree("unzipped")
         if self.verbosity:
-            print "\nConverted ", files[0]
+            print "\nConverted ", war
         
     def _unzip(self):
         if os.path.exists("unzipped"):
             shutil.rmtree("unzipped")
         files = glob.glob("*.war")
         if len(files) != 1: abort("Exactly one war file must be present")
-        zipfile.ZipFile(files[0]).extractall("unzipped")
+        war = files[0]
+        zipfile.ZipFile(war).extractall("unzipped")
+        return war
         
     def restartApp(self, appName):
         self.disableApp(appName)
@@ -300,10 +313,35 @@ class WildflyActions(Actions):
         
         self.config_path = os.path.join(wildfly, "config") 
         if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
-    
-    def convertWarfile(self, jmsTopicConnectionFactory=None):
-        self._unzip()
+       
+    def enableApp(self, appName):
+        self._cli("deploy --name=" + appName)
         
+    def disableApp(self, appName):
+        self._cli("undeploy " + appName + " --keep-content", tolerant=True, printOutput=True)
+    
+    def getAppName(self, app):
+        cmd = self.cliCommand + " " + "'ls deployment'"
+        out, err, rc = self.execute(cmd)
+        if rc: abort(err)
+        for line in out.splitlines():
+            if (line.startswith(app + "-")):
+                return line
+            
+    def _cli(self, command, tolerant=False, printOutput=False):
+        cmd = self.cliCommand + " '" + command + "'"
+        if self.verbosity: print "\nexecute: " + cmd 
+        out, err, rc = self.execute(cmd)
+        if self.verbosity > 1 or printOutput:
+            if out: print out
+            if err: print err
+     
+        if not tolerant and rc:
+            if not self.verbosity: print cmd, " ->"
+            abort(err)
+            
+    def deploy(self, deploymentorder=100, libraries=[], jmsTopicConnectionFactory=None):
+        war = self._unzip()
         # Fix the web.xml
         f = os.path.join("unzipped", "WEB-INF", "web.xml")
         if os.path.exists(f):
@@ -336,40 +374,12 @@ class WildflyActions(Actions):
             with open(f, "w") as fi:
                 fi.write(doc.toprettyxml(indent="  "))
                 
-        self._zip()
-    
-    
-    def enableApp(self, appName):
-        self._cli("deploy --name=" + appName)
+            self._fix_persistence_xml("JBoss")    
+                
+        self._zip(war)
         
-    def disableApp(self, appName):
-        self._cli("undeploy " + appName + " --keep-content", tolerant=True, printOutput=True)
-    
-    def getAppName(self, app):
-        cmd = self.cliCommand + " " + "'ls deployment'"
-        out, err, rc = self.execute(cmd)
-        if rc: abort(err)
-        for line in out.splitlines():
-            if (line.startswith(app + "-")):
-                return line
-            
-    def _cli(self, command, tolerant=False, printOutput=False):
-        cmd = self.cliCommand + " '" + command + "'"
-        if self.verbosity: print "\nexecute: " + cmd 
-        out, err, rc = self.execute(cmd)
-        if self.verbosity > 1 or printOutput:
-            if out: print out
-            if err: print err
-     
-        if not tolerant and rc:
-            if not self.verbosity: print cmd, " ->"
-            abort(err)
-            
-    def deploy(self, deploymentorder=100, libraries=[]):
-        files = glob.glob("*.war")
-        if len(files) != 1: abort("Exactly one war file must be present")
         cmd = self.cliCommand + " " + "'deploy"
-        cmd = cmd + " " + files[0] + "'"
+        cmd = cmd + " " + war + "'"
         if self.verbosity: print "\nexecute: " + cmd 
         out, err, rc = self.execute(cmd)
         if self.verbosity > 1 or rc:
@@ -401,7 +411,8 @@ class WildflyActions(Actions):
         self._cli("/subsystem=datasources/data-source=" + name + ":add(" + dProps + ")", printOutput=True)
       
     def createJMSResource(self, type, name):
-        self._cli("jms-topic add --topic-address=" + name + " --entries=" + name, printOutput=True)
+        self._cli("jms-topic add --topic-address=" + name + " --entries=java:jboss/exported/" + name + "\ " + name, printOutput=True)
+        self._cli("reload")
     
     def deleteJMSResource(self, name):
         self._cli("jms-topic remove --topic-address=" + name, tolerant=True)
@@ -441,50 +452,7 @@ class GlassfishActions(Actions):
         pos = vline.find("(")
         self.version = int(vline[:pos].split()[-1].split(".")[0])
         if self.verbosity: print "You are using Glassfish version", self.version
-    
-    def convertWarfile(self, jmsTopicConnectionFactory=None):        
-        if not jmsTopicConnectionFactory: jmsTopicConnectionFactory = 'jms/__defaultConnectionFactory'
-        self._unzip()
-        
-        # Fix the web.xml
-        f = os.path.join("unzipped", "WEB-INF", "web.xml")
-        if os.path.exists(f):
-            with open(f) as fi:
-                doc = parse(fi)
-                tg = doc.getElementsByTagName("transport-guarantee")[0].firstChild
-                if self.secure:
-                    tg.replaceWholeText("CONFIDENTIAL")
-                else:
-                    tg.replaceWholeText("NONE")
-                    
-                wap = doc.getElementsByTagName("web-app")[0]
-                
-                servlet = doc.getElementsByTagName("servlet")[0]
-                sc = servlet.getElementsByTagName("servlet-class")[0].firstChild
-                sc.replaceWholeText("org.glassfish.jersey.servlet.ServletContainer")
-                
-                cp = doc.getElementsByTagName("context-param")
-                if cp:
-                    cp[0].parentNode.removeChild(cp[0])
-                    
-            with open(f, "w") as fi:
-                fi.write(doc.toxml())
-                
-        # Fix the glassfish-ejb-jar.xml if needed
-        f = os.path.join("unzipped", "WEB-INF", "glassfish-ejb-jar.xml")
-        if os.path.exists(f):
-            with open(f) as fi:
-                doc = parse(fi)
-                mcf = doc.getElementsByTagName("mdb-connection-factory")
-                if mcf:
-                    jndiText = mcf[0].getElementsByTagName("jndi-name")[0].firstChild
-                    jndiText.replaceWholeText(jmsTopicConnectionFactory)
-                    
-            with open(f, "w") as fi:
-                fi.write(doc.toxml())              
-            
-        self._zip()    
-  
+      
     def deleteFileRealmUser(self, username):
         self._asadmin("delete-file-user " + username, tolerant=True)
         
@@ -567,9 +535,52 @@ class GlassfishActions(Actions):
         self._asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
         
-    def deploy(self, deploymentorder=100, libraries=[]):
-        files = glob.glob("*.war")
-        if len(files) != 1: abort("Exactly one war file must be present")
+    def deploy(self, deploymentorder=100, libraries=[], jmsTopicConnectionFactory=None):
+        if not jmsTopicConnectionFactory: jmsTopicConnectionFactory = 'jms/__defaultConnectionFactory'
+        
+        war = self._unzip()
+        
+        # Fix the web.xml
+        f = os.path.join("unzipped", "WEB-INF", "web.xml")
+        if os.path.exists(f):
+            with open(f) as fi:
+                doc = parse(fi)
+                tg = doc.getElementsByTagName("transport-guarantee")[0].firstChild
+                if self.secure:
+                    tg.replaceWholeText("CONFIDENTIAL")
+                else:
+                    tg.replaceWholeText("NONE")
+                    
+                wap = doc.getElementsByTagName("web-app")[0]
+                
+                servlet = doc.getElementsByTagName("servlet")[0]
+                sc = servlet.getElementsByTagName("servlet-class")[0].firstChild
+                sc.replaceWholeText("org.glassfish.jersey.servlet.ServletContainer")
+                
+                cp = doc.getElementsByTagName("context-param")
+                if cp:
+                    cp[0].parentNode.removeChild(cp[0])
+                    
+            with open(f, "w") as fi:
+                fi.write(doc.toxml())
+                
+        # Fix the glassfish-ejb-jar.xml if needed
+        f = os.path.join("unzipped", "WEB-INF", "glassfish-ejb-jar.xml")
+        if os.path.exists(f):
+            with open(f) as fi:
+                doc = parse(fi)
+                mcf = doc.getElementsByTagName("mdb-connection-factory")
+                if mcf:
+                    jndiText = mcf[0].getElementsByTagName("jndi-name")[0].firstChild
+                    jndiText.replaceWholeText(jmsTopicConnectionFactory)
+                    
+            with open(f, "w") as fi:
+                fi.write(doc.toxml())
+                
+        self._fix_persistence_xml("Glassfish")                        
+            
+        self._zip(war) 
+        
         cmd = self.asadminCommand + " " + "deploy"
         if self.version >= 4:
             cmd = cmd + " --deploymentorder " + str(deploymentorder)
@@ -585,7 +596,7 @@ class GlassfishActions(Actions):
                 else:
                     libstring = "--libraries " + libadd
             cmd = cmd + " " + libstring
-        cmd = cmd + " " + files[0]
+        cmd = cmd + " " + war
         if self.verbosity: print "\nexecute: " + cmd 
         out, err, rc = self.execute(cmd)
         if self.verbosity > 1:
