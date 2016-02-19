@@ -11,6 +11,10 @@ import org.icatproject.IcatException;
 import org.icatproject.IcatExceptionType;
 import org.icatproject.IcatException_Exception;
 
+/**
+ * To find the ICAT SOAP web service irrespective of the container in use. It
+ * does this by trial and error.
+ */
 public class ICATGetter {
 
 	private static String[] suffices = new String[] { "ICATService/ICAT?wsdl", "icat/ICAT?wsdl" };
@@ -24,7 +28,10 @@ public class ICATGetter {
 	 *            non-empty file part it is used unchanged, otherwise suffices
 	 *            are tried suitable for Glassfish and WildFly.
 	 * 
+	 * @return an ICAT
+	 * 
 	 * @throws IcatException_Exception
+	 *             if something is wrong
 	 */
 	public static ICAT getService(String urlString) throws IcatException_Exception {
 

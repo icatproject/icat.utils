@@ -103,12 +103,15 @@ public class CheckedProperties {
 		}
 		return value;
 	}
-	
+
 	/**
-	 * Return value as a string. The string will not be null or empty unless the default value is used.
+	 * Return value as a string. The string will not be null or empty unless the
+	 * default value is used.
 	 * 
 	 * @param name
 	 *            the name of the property
+	 * @param defaultValue
+	 *            the value to be returned if property not found
 	 * 
 	 * @return the value of the property
 	 * 
@@ -146,13 +149,13 @@ public class CheckedProperties {
 		try {
 			int iValue = Integer.parseInt(value);
 			if (iValue <= 0) {
-				throw new CheckedPropertyException(name + " as defined in " + this.fileName
-						+ " is not a representation of a positive integer");
+				throw new CheckedPropertyException(
+						name + " as defined in " + this.fileName + " is not a representation of a positive integer");
 			}
 			return iValue;
 		} catch (NumberFormatException e) {
-			throw new CheckedPropertyException(name + " as defined in " + this.fileName
-					+ " is not a representation of a positive integer");
+			throw new CheckedPropertyException(
+					name + " as defined in " + this.fileName + " is not a representation of a positive integer");
 		}
 	}
 
@@ -180,8 +183,8 @@ public class CheckedProperties {
 			}
 			return iValue;
 		} catch (NumberFormatException e) {
-			throw new CheckedPropertyException(name + " as defined in " + this.fileName
-					+ " is not a representation of a non-negative integer");
+			throw new CheckedPropertyException(
+					name + " as defined in " + this.fileName + " is not a representation of a non-negative integer");
 		}
 	}
 
@@ -204,8 +207,8 @@ public class CheckedProperties {
 		try {
 			return Double.parseDouble(value);
 		} catch (NumberFormatException e) {
-			throw new CheckedPropertyException(name + " as defined in " + this.fileName
-					+ " is not a representation of a floating point number");
+			throw new CheckedPropertyException(
+					name + " as defined in " + this.fileName + " is not a representation of a floating point number");
 		}
 	}
 
@@ -268,8 +271,8 @@ public class CheckedProperties {
 		try {
 			return new URL(value);
 		} catch (MalformedURLException e) {
-			throw new CheckedPropertyException(name + " as defined in " + this.fileName
-					+ " is not a representation of a URL");
+			throw new CheckedPropertyException(
+					name + " as defined in " + this.fileName + " is not a representation of a URL");
 		}
 	}
 
@@ -342,13 +345,13 @@ public class CheckedProperties {
 		try {
 			long lValue = Long.parseLong(value);
 			if (lValue < 0L) {
-				throw new CheckedPropertyException(name + " as defined in " + this.fileName
-						+ " is not a representation of a non-negative long");
+				throw new CheckedPropertyException(
+						name + " as defined in " + this.fileName + " is not a representation of a non-negative long");
 			}
 			return lValue;
 		} catch (NumberFormatException e) {
-			throw new CheckedPropertyException(name + " as defined in " + this.fileName
-					+ " is not a representation of a non-negative long");
+			throw new CheckedPropertyException(
+					name + " as defined in " + this.fileName + " is not a representation of a non-negative long");
 		}
 
 	}
@@ -372,17 +375,15 @@ public class CheckedProperties {
 		try {
 			long lValue = Long.parseLong(value);
 			if (lValue <= 0L) {
-				throw new CheckedPropertyException(name + " as defined in " + this.fileName
-						+ " is not a representation of a positive long");
+				throw new CheckedPropertyException(
+						name + " as defined in " + this.fileName + " is not a representation of a positive long");
 			}
 			return lValue;
 		} catch (NumberFormatException e) {
-			throw new CheckedPropertyException(name + " as defined in " + this.fileName
-					+ " is not a representation of a positive long");
+			throw new CheckedPropertyException(
+					name + " as defined in " + this.fileName + " is not a representation of a positive long");
 		}
 
 	}
-
-	
 
 }
