@@ -236,10 +236,20 @@ class Actions(object):
                 else:  print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "is not in example"
             for key in example.keys():
                 if key not in props: print "\nValue for" , key, "not in", file_name, "but is in example:", "'" + example[key] + "'"
+    
+    def configureFileForWar(self, f):
+        if not os.path.exists(f):
+            shutil.copy(f + ".example", f)
+            print "\nCopied", f + ".example", "to", f
+            print "Please edit", f, "to meet your requirements"
+            self.clashes += 1
             
     def checkNoErrors(self):
         if self.clashes:
-            abort("Please edit configuration files and try again as " + str(self.clashes) + " errors were reported.")
+            if self.clashes == 1:
+                abort("Please edit configuration file and try again as an error was reported.")
+            else:
+                abort("Please edit configuration files and try again as " + str(self.clashes) + " errors were reported.")
   
     def installFile(self, file, dir=None):
         if not dir: dir = self.config_path
@@ -512,6 +522,13 @@ class GlassfishActions(Actions):
     
     def deleteJMSResource(self, name):
         self._asadmin("delete-jms-resource " + name, tolerant=True)
+        
+    def createMailResource(self, name, host, user, mfrom , property):
+        self._asadmin("create-javamail-resource --mailhost " + host + " --mailuser " + user + 
+                      " --fromaddress " + mfrom + " --property " + property + " " + name)
+
+    def deleteMailResource(self, name):
+        self._asadmin("delete-javamail-resource " + name, tolerant=True)
                      
     def addFileRealmUser(self, username, password, group):
         if self.getAsadminProperty("configs.config.server-config.security-service.activate-default-principal-to-role-mapping") == "false":
@@ -535,10 +552,21 @@ class GlassfishActions(Actions):
         self._asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
         
-    def deploy(self, deploymentorder=100, libraries=[], jmsTopicConnectionFactory=None):
+    def deploy(self, deploymentorder=100, libraries=[], files=[], jmsTopicConnectionFactory=None):
         if not jmsTopicConnectionFactory: jmsTopicConnectionFactory = 'jms/__defaultConnectionFactory'
         
         war = self._unzip()
+        
+        # Add specific files
+        for src, dir in files:
+            dir = os.path.join("unzipped", dir)
+            try:
+                os.makedirs(dir)
+            except:
+                pass
+            shutil.copy(src , dir)
+            if self.verbosity:
+                print "\n", src, "copied to", dir
         
         # Fix the web.xml
         f = os.path.join("unzipped", "WEB-INF", "web.xml")

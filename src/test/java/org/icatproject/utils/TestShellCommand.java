@@ -60,7 +60,7 @@ public class TestShellCommand {
 
 	@Test
 	public void testBigOutput() throws Exception {
-		ShellCommand sc = new ShellCommand("lsof");
+		ShellCommand sc = new ShellCommand("ps", "-efl");
 		String stdout = sc.getStdout();
 		String stderr = sc.getStderr();
 		int exitCode = sc.getExitValue();
@@ -88,7 +88,7 @@ public class TestShellCommand {
 		String stderr = sc.getStderr();
 		int exitCode = sc.getExitValue();
 		assertEquals("stdout", 0, stdout.length());
-		assertEquals("stderr", "date: invalid date `12'\n", stderr);
+		assertTrue("stderr", stderr.startsWith("date: invalid date"));
 		assertEquals("exitCode", 1, exitCode);
 	}
 
@@ -99,7 +99,7 @@ public class TestShellCommand {
 		String stderr = sc.getStderr();
 		int exitCode = sc.getExitValue();
 		assertEquals("stdout", 0, stdout.length());
-		assertEquals("stderr", "date: invalid date `12'\n", stderr);
+		assertTrue("stderr", stderr.startsWith("date: invalid date"));
 		assertEquals("exitCode", 1, exitCode);
 	}
 
