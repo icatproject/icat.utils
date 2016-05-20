@@ -9,11 +9,11 @@ public class ContainerGetter {
 	/** The type of container */
 	public enum ContainerType {
 		/** WildFly */
-		WILDFLY,
+		JBoss,
 
 		/** Glassfish */
-		GLASSFISH, 
-		
+		Glassfish,
+
 		/** Container not recognised */
 		UNKNOWN
 	};
@@ -27,9 +27,9 @@ public class ContainerGetter {
 	public static ContainerType getContainer() {
 		ContainerType result = ContainerType.UNKNOWN;
 		if (Files.exists(Paths.get("..", "jboss-modules.jar"))) {
-			result = ContainerType.WILDFLY;
+			result = ContainerType.JBoss;
 		} else if (Files.exists(Paths.get("glassfish-acc.xml"))) {
-			result = ContainerType.GLASSFISH;
+			result = ContainerType.Glassfish;
 		}
 		return result;
 	}

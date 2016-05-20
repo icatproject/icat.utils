@@ -5,34 +5,37 @@
 <body>
 	<h1>Release notes</h1>
 
-	<h2>
-		4.14.0
-		<h2>
-			<p>Permit more control of eclipselink</p>
+	<h2>4.14.0</h2>
+	<p>Permit more control of eclipselink and change return value from
+		ContainerGetter.getContainer()</p>
+	<ul>
+		<li>deploy() operation in setup_utils supports optional target
+			and logging parameters.</li>
+		<li>Enums returned from ContainerGetter.getContainer() are
+			Glassfish or JBoss to match values of Eclipse Link TargetServer</li>
+	</ul>
 
-			<h2>4.13.0</h2>
-			<p>Removed ICATGetter as it produced an unpleasant dependency
-				upon the ICAT client</p>
+	<h2>4.13.0</h2>
+	<p>Removed ICATGetter as it produced an unpleasant dependency upon
+		the ICAT client</p>
 
-			<h2>4.12.0</h2>
-			<ul>
-				<li>Added ContainerGetter to find what type of container is
-					being used</li>
-				<li>New call in getString to allow a default value to be
-					provided</li>
-			</ul>
+	<h2>4.12.0</h2>
+	<ul>
+		<li>Added ContainerGetter to find what type of container is being
+			used</li>
+		<li>New call in getString to allow a default value to be provided</li>
+	</ul>
 
-			<h2>4.11.0</h2>
-			<p>Bug fixes release and additions to setup_utils</p>
-			<ul>
-				<li>Remove any trailing white space from String returned by
-					getString().</li>
-				<li>CheckedProperties no longer extends java.util.Properties
-					but just uses it as implementation so some methods are no longer
-					present.</li>
-				<li>Add jms resource handling to setup_utils</li>
-				<li>Added ICATGetter class</li>
-			</ul>
+	<h2>4.11.0</h2>
+	<p>Bug fixes release and additions to setup_utils</p>
+	<ul>
+		<li>Remove any trailing white space from String returned by
+			getString().</li>
+		<li>CheckedProperties no longer extends java.util.Properties but
+			just uses it as implementation so some methods are no longer present.</li>
+		<li>Add jms resource handling to setup_utils</li>
+		<li>Added ICATGetter class</li>
+	</ul>
 </body>
 </html>
 
