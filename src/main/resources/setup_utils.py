@@ -13,6 +13,7 @@ import glob
 import platform
 import zipfile
 from xml.dom.minidom import parse
+import contextlib
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
@@ -52,7 +53,7 @@ def getProperties(fileName, needed):
             
      return props
     
-def getActions(file_name, required, binDir=False, appDir=False):
+def getActions(file_name=None, required=[], binDir=False, appDir=False):
     if not os.path.exists ("setup"): abort ("This must be run from the unpacked distribution directory")
     parser = OptionParser("usage: %prog [options] configure | install | uninstall")
     try:
@@ -82,29 +83,33 @@ def getActions(file_name, required, binDir=False, appDir=False):
     if binDir and not os.path.isdir(os.path.expanduser(options.binDir)): abort("Please create directory " + options.binDir + " or specify --binDir")
     if appDir and not os.path.isdir(os.path.expanduser(options.appDir)): abort("Please create directory " + options.appDir + " or specify --appDir")
     
-    if not os.path.exists(file_name):
-        shutil.copy(file_name + ".example", file_name) 
-        if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-        abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
-    if os.stat(file_name).st_mode & stat.S_IROTH:
-        if platform.system() == "Windows":
-            print "Warning: '" + file_name + "' should not be world readable"
-        else:
-            os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-            print "'" + file_name + "' mode changed to 0600"
-    props = getProperties(file_name, required + ["secure", "home", "container", "port"])
+    if file_name:
+        if not os.path.exists(file_name):
+            shutil.copy(file_name + ".example", file_name) 
+            if platform.system() != "Windows": os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+            abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
+        if os.stat(file_name).st_mode & stat.S_IROTH:
+            if platform.system() == "Windows":
+                print "Warning: '" + file_name + "' should not be world readable"
+            else:
+                os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+                print "'" + file_name + "' mode changed to 0600"
+        props = getProperties(file_name, required + ["secure", "home", "container", "port"])
+        
+        if props["secure"].lower() == "true": secure = True
+        elif props["secure"].lower() == "false": secure = False
+        else : abort ("Secure must be true or false")
+        
+        if "db.vendor" in props: 
+            abort("db.vendor should no longer be specified in " + file_name + " - consider setting db.target")
     
-    if props["secure"].lower() == "true": secure = True
-    elif props["secure"].lower() == "false": secure = False
-    else : abort ("Secure must be true or false")
-    
-    if "db.vendor" in props: 
-        abort("db.vendor should no longer be specified in " + file_name + " - consider setting db.target")
-
-    container = props["container"]
-    if container == "Glassfish": actions = GlassfishActions(props, options)
-    elif container == "JBoss": actions = WildflyActions(props, options)
-    else : abort ("container must be Glassfish or JBoss")
+        container = props["container"]
+        if container == "Glassfish": actions = GlassfishActions(props, options)
+        elif container == "JBoss": actions = WildflyActions(props, options)
+        else : abort ("container must be Glassfish or JBoss")
+    else:
+        props = {"secure":"NA"}
+        actions = Actions(props, options)
     
     return actions, arg, props
 
@@ -165,7 +170,7 @@ class Actions(object):
         files = glob.glob("*.war")
         if len(files) != 1: abort("Exactly one war file must be present")
         war = files[0]
-        zipfile.ZipFile(war).extractall("unzipped")
+        with contextlib.closing(zipfile.ZipFile(war)) as z: z.extractall("unzipped")
         return war
         
     def restartApp(self, appName):
@@ -621,6 +626,11 @@ class GlassfishActions(Actions):
         if os.path.exists(f):
             with open(f) as fi:
                 doc = parse(fi)
+                tg = doc.getElementsByTagName("transport-guarantee")[0].firstChild
+                if self.secure:
+                    tg.replaceWholeText("CONFIDENTIAL")
+                else:
+                    tg.replaceWholeText("NONE")
                 mcf = doc.getElementsByTagName("mdb-connection-factory")
                 if mcf:
                     jndiText = mcf[0].getElementsByTagName("jndi-name")[0].firstChild
