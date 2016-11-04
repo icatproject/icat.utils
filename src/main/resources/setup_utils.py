@@ -342,9 +342,10 @@ class WildflyActions(Actions):
         cmd = self.cliCommand + " --version"
         out, err, rc = self.execute(cmd)
         if rc: abort(out + err)
+        version = "Unknown!!!"
         for line in out.splitlines():
-            if line.startswith("JBoss AS product"): self.version = line[18:]
-        if self.verbosity: print "You are using", self.version
+            if line.startswith("JBoss AS product"): version = line[18:]
+        if self.verbosity: print "You are using", version
         
         self.config_path = os.path.join(wildfly, "config") 
         if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
@@ -488,9 +489,7 @@ class GlassfishActions(Actions):
         out, err, rc = self.execute(cmd)
         if rc: abort(err)
         vline = out.splitlines()[0]
-        pos = vline.find("(")
-        self.version = int(vline[:pos].split()[-1].split(".")[0])
-        if self.verbosity: print "You are using Glassfish version", self.version
+        if self.verbosity: print "You are using:", vline.split("=")[1].strip()
       
     def deleteFileRealmUser(self, username):
         self._asadmin("delete-file-user " + username, tolerant=True)
@@ -643,9 +642,7 @@ class GlassfishActions(Actions):
             
         self._zip(war) 
         
-        cmd = self.asadminCommand + " " + "deploy"
-        if self.version >= 4:
-            cmd = cmd + " --deploymentorder " + str(deploymentorder)
+        cmd = self.asadminCommand + " " + "deploy --deploymentorder " + str(deploymentorder)
         if libraries:
             libstring = ""
             for library in libraries:
