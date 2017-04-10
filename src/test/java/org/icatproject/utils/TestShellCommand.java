@@ -88,7 +88,7 @@ public class TestShellCommand {
 		String stderr = sc.getStderr();
 		int exitCode = sc.getExitValue();
 		assertEquals("stdout", 0, stdout.length());
-		assertTrue("stderr", stderr.startsWith("date: invalid date"));
+		assertTrue("stderr", stderr.startsWith("date:"));
 		assertEquals("exitCode", 1, exitCode);
 	}
 
@@ -99,7 +99,7 @@ public class TestShellCommand {
 		String stderr = sc.getStderr();
 		int exitCode = sc.getExitValue();
 		assertEquals("stdout", 0, stdout.length());
-		assertTrue("stderr", stderr.startsWith("date: invalid date"));
+		assertTrue("stderr", stderr.startsWith("date:"));
 		assertEquals("exitCode", 1, exitCode);
 	}
 
@@ -110,8 +110,7 @@ public class TestShellCommand {
 		String stderr = sc.getStderr();
 		int exitCode = sc.getExitValue();
 		assertEquals("stdout", 0, stdout.length());
-		assertEquals("stderr", "Cannot run program \"wibble\": error=2, No such file or directory",
-				stderr);
+		assertTrue("stderr", stderr.startsWith("Cannot run program \"wibble\": error=2,"));
 		assertEquals("exitCode", 1, exitCode);
 	}
 
