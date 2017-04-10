@@ -33,6 +33,24 @@ public class TestCheckedProperties {
 	public void tearDown() throws Exception {
 	}
 
+	@Test
+	public final void testFileWithEnv1() throws CheckedPropertyException {
+		assertEquals(s_properties.getFile("f1").toString(), System.getenv("HOME") + "/a/" + System.getenv("USER"));
+		assertEquals(s_properties.getPath("f1").toString(), System.getenv("HOME") + "/a/" + System.getenv("USER"));
+	}
+
+	@Test
+	public final void testFileWithEnv2() throws CheckedPropertyException {
+		assertEquals(s_properties.getFile("f2").toString(), "a.b");
+		assertEquals(s_properties.getPath("f2").toString(), "a.b");
+	}
+
+	@Test
+	public final void testFileWithEnv3() throws CheckedPropertyException {
+		assertEquals(s_properties.getFile("f3").toString(), "/a/b" + System.getenv("USER") + "/${USER");
+		assertEquals(s_properties.getPath("f3").toString(), "/a/b" + System.getenv("USER") + "/${USER");
+	}
+
 	@Test(expected = CheckedPropertyException.class)
 	public final void testPropertiesFromResources() throws Exception {
 		s_properties.loadFromFile("Doesn't exist");

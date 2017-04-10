@@ -24,7 +24,7 @@ def getProperties(fileName, needed):
      """Read properties files and check that the properties in the needed list are present"""
  
      if not os.path.exists(fileName): 
-         abort (fileName + " file not found - please run './setup configure'")
+         abort (fileName + " file not found")
      
      p = re.compile(r"")
      f = open(fileName)
@@ -75,10 +75,10 @@ def getActions(file_name=None, required=[], binDir=False, appDir=False):
     
     options, args = parser.parse_args()
     
-    if len(args) != 1:abort("Must have one argument: 'configure, install' or 'uninstall'")
+    if len(args) != 1:abort("Must have one argument: install' or 'uninstall'")
     
     arg = args[0].upper()
-    if arg not in ["CONFIGURE", "INSTALL", "UNINSTALL"]: abort("Must have one argument: 'configure, install' or 'uninstall'")
+    if arg not in ["CONFIGURE", "INSTALL", "UNINSTALL"]: abort("Must have one argument: 'install' or 'uninstall'")
     
     if binDir and not os.path.isdir(os.path.expanduser(options.binDir)): abort("Please create directory " + options.binDir + " or specify --binDir")
     if appDir and not os.path.isdir(os.path.expanduser(options.appDir)): abort("Please create directory " + options.appDir + " or specify --appDir")
@@ -206,48 +206,16 @@ class Actions(object):
         stringErr.close()
         
         return out, err, rc
-    
-    def configFileExists(self, file):
-        return os.path.exists(os.path.join(self.config_path, file))
-        
-    def configure(self, file_name, expected, config_file_path=None, dir=None):
-        if not config_file_path: config_file_path = self.config_path
-        if dir:
-            config_file_path = os.path.join(config_file_path, dir)
-            local_path = os.path.join(dir)
-        else:
-            config_file_path = os.path.join(config_file_path, file_name)
-            local_path = file_name
-        config = os.path.exists(config_file_path)
-        if config: config = os.path.getmtime(config_file_path)
-        local = os.path.exists(local_path)
-        if local: local = os.path.getmtime(local_path)
-        if not local:
-            if config:
-                if dir:
-                    shutil.copytree(config_file_path, dir)
-                    print "\nCopied directory " + config_file_path + " to " + dir
-                    print "Please edit contents of directory ", dir, "to meet your requirements"
-                else:
-                    shutil.copy(config_file_path, file_name)
-                    print "\nCopied " + config_file_path + " to " + file_name
-                    print "Please edit", file_name, "to meet your requirements"
-            else:
-                if dir:
-                    shutil.copytree(dir + ".example", dir)
-                    print "\nCopied directory " + file_name + ".example" + " to " + dir
-                    print "Please edit contents of directory ", dir, "to meet your requirements"
-                else:
-                    shutil.copy(file_name + ".example", file_name)
-                    print "\nCopied " + file_name + ".example" + " to " + file_name
-                    print "Please edit", file_name, "to meet your requirements"
+           
+    def configure(self, file_name, expected):
+        if not os.path.exists(file_name):
+            shutil.copy(file_name + ".example", file_name)
+            print "\nCopied " + file_name + ".example" + " to " + file_name
+            print "Please edit", file_name, "to meet your requirements"
             abort("... and then re-run the command")
-        if dir:
-            props = getProperties(os.path.join(dir, file_name), [])
-            example = getProperties(os.path.join(dir + ".example", file_name), [])
-        else:
-            props = getProperties(file_name, [])
-            example = getProperties(file_name + ".example", [])
+
+        props = getProperties(file_name, [])
+        example = getProperties(file_name + ".example", [])
         for key in expected:
             prop = props.get(key)
             if not prop:
@@ -275,54 +243,32 @@ class Actions(object):
                 abort("Please edit configuration file and try again as an error was reported.")
             else:
                 abort("Please edit configuration files and try again as " + str(self.clashes) + " errors were reported.")
-  
-    def installFile(self, file, dir=None):
-        if not dir: dir = self.config_path
+                  
+    def installFile(self, file, dir):
         if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
         if not os.path.exists(file): abort (file + " not found")
-        dest = os.path.join(dir, file)
-        if os.path.exists(dest):
-            diff = not filecmp.cmp(file, dest)
-            if diff:
-                if os.path.getmtime(file) > os.path.getmtime(dest): 
-                    shutil.copy(file , dir)
-                    print "\n", dest, "has been overwritten"
-                else:
-                   abort(dest + " is newer than " + file)
-        else:
-            shutil.copy(file , dir)
-            if self.verbosity:
-                print "\n", file, "copied to", dir
+        shutil.copy(file , dir)
+        if self.verbosity:
+            print "\n", file, "copied to", dir
             
-    def removeFile(self, file, dir=None):
-        if not dir: dir = self.config_path
+    def removeFile(self, file, dir):
         dest = os.path.join(dir, file)
         if os.path.exists(dest): 
             os.remove(dest)
             if self.verbosity:
                 print "\n", file, "removed from", dir
                 
-    def installDir(self, file, dir=None):
-        if not dir: dir = self.config_path
+    def installDir(self, file, dir):
         if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
         if not os.path.exists(file): abort (file + " not found") 
         if not os.path.isdir(file): abort (file + " is not a directory")
         dest = os.path.join(dir, file)
-        if os.path.exists(dest):
-            if (os.path.getmtime(file) - os.path.getmtime(dest)) > -.001:  # Directory times from python are odd  
-                shutil.rmtree(dest)
-                shutil.copytree(file , dest)
-                print "\n", dest, "has been overwritten"
-            else:
-                print os.path.getmtime(file) - os.path.getmtime(dest)
-                abort("Directory " + dest + " is newer than " + file)
-        else: 
-            shutil.copytree(file , dest)
-            if self.verbosity:
-                print "\n", file, "copied to", dir
+        if os.path.exists(dest): shutil.rmtree(dest)
+        shutil.copytree(file , dest)
+        if self.verbosity:
+            print "\n", file, "copied to", dir
             
-    def removeDir(self, file, dir=None):
-        if not dir: dir = self.config_path
+    def removeDir(self, file, dir):
         dest = os.path.join(dir, file)
         if os.path.exists(dest): 
             shutil.rmtree(dest)
@@ -346,10 +292,7 @@ class WildflyActions(Actions):
         for line in out.splitlines():
             if line.startswith("JBoss AS product"): version = line[18:]
         if self.verbosity: print "You are using", version
-        
-        self.config_path = os.path.join(wildfly, "config") 
-        if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
-       
+               
     def enableApp(self, appName):
         self._cli("deploy --name=" + appName)
         
@@ -480,8 +423,6 @@ class GlassfishActions(Actions):
         
         domain_path = os.path.join(glassfish, "glassfish", "domains", self.domain)
         if not os.path.exists(domain_path): abort("Domain directory " + domain_path + " does not exist")
-        self.config_path = os.path.join(domain_path, "config") 
-        if not os.path.exists(self.config_path): abort("Domain's config directory " + self.config_path + " does not exist")
         self.lib_path = os.path.join(domain_path, "lib", "applibs")
         if not os.path.exists(self.lib_path): abort("Domain's lib directory " + self.lib_path + " does not exist")
         

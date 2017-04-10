@@ -10,6 +10,8 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Similar to the java.util.Properties class but provides methods to convert
@@ -29,6 +31,22 @@ public class CheckedProperties {
 		CheckedPropertyException(String msg) {
 			super(msg);
 		}
+	}
+
+	private static String resolveEnvs(String value) {
+		if (null == value) {
+			return null;
+		}
+		Pattern p = Pattern.compile("\\$\\{(\\w+)\\}|\\$(\\w+)");
+		Matcher m = p.matcher(value);
+		StringBuffer sb = new StringBuffer();
+		while (m.find()) {
+			String envVarName = null == m.group(1) ? m.group(2) : m.group(1);
+			String envVarValue = System.getenv(envVarName);
+			m.appendReplacement(sb, null == envVarValue ? "" : Matcher.quoteReplacement(envVarValue));
+		}
+		m.appendTail(sb);
+		return sb.toString();
 	}
 
 	private String fileName;
@@ -304,7 +322,7 @@ public class CheckedProperties {
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
-		return new File(value);
+		return new File(resolveEnvs(value));
 	}
 
 	/**
@@ -323,7 +341,7 @@ public class CheckedProperties {
 		if (value == null) {
 			throw new CheckedPropertyException(name + " is not defined in " + this.fileName);
 		}
-		return fileSystem.getPath(value);
+		return fileSystem.getPath(resolveEnvs(value));
 	}
 
 	/**
