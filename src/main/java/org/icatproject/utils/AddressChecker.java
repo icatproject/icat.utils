@@ -6,8 +6,6 @@ import java.util.List;
 
 /**
  * Utility to check IP4 and IP6 addresses for acceptability.
- * 
- * This may be called by an {@link Authenticator}.
  */
 public class AddressChecker {
 
