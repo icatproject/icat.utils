@@ -8,6 +8,8 @@ it to the DataCite DOI API.
 This code is derived from code written by the Mantid project
 (doi:10.5286/software/mantid) """
 
+from __future__ import print_function
+
 import argparse
 
 import xml.etree.ElementTree as ET
@@ -121,17 +123,17 @@ def _http_request(body, method, url, username, password):
     proc = subprocess.Popen(args, stdout=subprocess.PIPE)
     result = proc.stdout.readlines()
 
-    print "Server Response: " + str(result)
+    print("Server Response: " + str(result))
     return result
 
 def delete_doi(base, doi, username, password):
-    print "\nAttempting to delete the meta data for:" + doi 
+    print("\nAttempting to delete the meta data for:" + doi )
     result = _http_request('', 'DELETE', base + "metadata/" + doi, username, password)
 
     if not re.match(SUCCESS_RESPONSE, result[0]):
         raise Exception('Deleting metadata unsuccessful.  Quitting.')
 
-    print "\nAttempting to point " + doi + " to invalid page."
+    print("\nAttempting to point " + doi + " to invalid page.")
     result = _http_request('doi=' + doi + '\n' + 'url=' + INVALID_URL, "PUT", base + "doi/" + doi, username, password)
 
     if not re.match(SUCCESS_RESPONSE, result[0]):
@@ -142,7 +144,7 @@ def create_or_update_metadata(xml_form, base, doi, username, password):
     Metadata must be created before a doi can be created.  If the metadata
     already exists, then it will simply be updated.
     '''
-    print "\nAttempting to create / update metadata:"
+    print("\nAttempting to create / update metadata:")
     result = _http_request(xml_form, "PUT", base + "metadata/" + doi, username, password)
   
     if not re.match(SUCCESS_RESPONSE, result[0]):
@@ -153,9 +155,9 @@ def create_or_update_doi(base, doi, destination, username, password):
     created before this can be successful.  If the doi already exists, then it
     will simply be updated.
     '''
-    print "\nAttempting to create / update the following DOI:"
-    print 'DOI = ' + doi
-    print 'URL = ' + destination
+    print("\nAttempting to create / update the following DOI:")
+    print('DOI = ' + doi)
+    print('URL = ' + destination)
     result = _http_request('doi=' + doi + '\n' + 'url=' + destination, "PUT", base + "doi/" + doi, username, password)
 
     if not re.match(SUCCESS_RESPONSE, result[0]):
@@ -168,14 +170,14 @@ def check_if_doi_exists(base, doi, destination, username, password):
     as the given destination), else false.  Throws if the response from the
     server is unrecognised, or if there is no response at all.
     '''
-    print "\nChecking if \"" + base + "doi/" + doi + "\" DOI exists."
+    print("\nChecking if \"" + base + "doi/" + doi + "\" DOI exists.")
     result = _http_request('', 'GET', base + "doi/" + doi, username, password)
 
     if result[0] == 'DOI not found' or result[0] == INVALID_URL:
-        print "\"" + doi + "\" does not exist"
+        print("\"" + doi + "\" does not exist")
         return False
     elif result[0] == destination:
-        print "DOI found."
+        print("DOI found.")
         return True
     else:
         raise Exception(
@@ -214,7 +216,7 @@ def run(options):
         relationships[parent] = 'IsPartOf'
 
     xml_form = build_xml_form(doi, relationships, title, options.version)
-    if options.debug: print xml_form
+    if options.debug: print(xml_form)
 
     create_or_update_metadata(xml_form, server_url_base, doi, options.username, options.password)
     create_or_update_doi(server_url_base, doi, destination, options.username, options.password)    
@@ -229,9 +231,9 @@ def run(options):
         doi_add = 'https://test.datacite.org/mds/doi/' + doi
         meta_add = 'https://test.datacite.org/mds/metadata/' + doi
 
-    print "\nSUCCESS!" + \
+    print("\nSUCCESS!" + \
                   "\nThe DOI can be %s at \"%s\"." % (operation, doi_add) + \
-                  "\nThe metadata can be inspected at \"%s\"." % (meta_add)
+                  "\nThe metadata can be inspected at \"%s\"." % (meta_add))
     quit()
 
 if __name__ == "__main__":

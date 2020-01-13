@@ -1,7 +1,9 @@
+from __future__ import print_function
+
 import os
 import re
 import subprocess
-import StringIO
+import io
 import threading
 import shlex
 import sys
@@ -17,7 +19,8 @@ import contextlib
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
-    print >> sys.stderr, "\n", msg, "\nSetup is not complete\n"
+    #print >> sys.stderr, "\n", msg, "\nSetup is not complete\n"
+    print("\n", msg, "\nSetup is not complete\n", file=sys.stderr)
     sys.exit(1)
     
 def getProperties(fileName, needed):
@@ -90,10 +93,10 @@ def getActions(file_name=None, required=[], binDir=False, appDir=False):
             abort ("\nPlease edit " + file_name + " to meet your requirements then re-run the command")
         if os.stat(file_name).st_mode & stat.S_IROTH:
             if platform.system() == "Windows":
-                print "Warning: '" + file_name + "' should not be world readable"
+                print("Warning: '" + file_name + "' should not be world readable")
             else:
                 os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-                print "'" + file_name + "' mode changed to 0600"
+                print("'" + file_name + "' mode changed to 0600")
         props = getProperties(file_name, required + ["secure", "home", "container", "port"])
         
         if props["secure"].lower() == "true": secure = True
@@ -162,7 +165,7 @@ class Actions(object):
         os.rename("zip", war)
         shutil.rmtree("unzipped")
         if self.verbosity:
-            print "\nConverted ", war
+            print("\nConverted ", war)
         
     def _unzip(self):
         if os.path.exists("unzipped"):
@@ -187,11 +190,11 @@ class Actions(object):
         else:
             cmd = shlex.split(cmd)
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stringOut = StringIO.StringIO()
+        stringOut = io.StringIO()
        
         mstdout = Tee(proc.stdout, stringOut)
         mstdout.start()
-        stringErr = StringIO.StringIO()
+        stringErr = io.StringIO()
         mstderr = Tee(proc.stderr, stringErr)
         mstderr.start()
         rc = proc.wait()
@@ -210,8 +213,8 @@ class Actions(object):
     def configure(self, file_name, expected):
         if not os.path.exists(file_name):
             shutil.copy(file_name + ".example", file_name)
-            print "\nCopied " + file_name + ".example" + " to " + file_name
-            print "Please edit", file_name, "to meet your requirements"
+            print("\nCopied " + file_name + ".example" + " to " + file_name)
+            print("Please edit", file_name, "to meet your requirements")
             abort("... and then re-run the command")
 
         props = getProperties(file_name, [])
@@ -220,21 +223,21 @@ class Actions(object):
             prop = props.get(key)
             if not prop:
                 self.clashes += 1
-                print "Error: property", key, "is not set in", file_name
+                print("Error: property", key, "is not set in", file_name)
 
         if self.verbosity > 1:
             for key in props.keys():
                 if key in example:
-                    if props[key] != example[key]: print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "which differs from example:", "'" + example[key] + "'"
-                else:  print "\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "is not in example"
+                    if props[key] != example[key]: print("\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "which differs from example:", "'" + example[key] + "'")
+                else:  print("\nValue for" , key, "in", file_name, "is", "'" + props[key] + "'", "is not in example")
             for key in example.keys():
-                if key not in props: print "\nValue for" , key, "not in", file_name, "but is in example:", "'" + example[key] + "'"
+                if key not in props: print("\nValue for" , key, "not in", file_name, "but is in example:", "'" + example[key] + "'")
     
     def configureFileForWar(self, f):
         if not os.path.exists(f):
             shutil.copy(f + ".example", f)
-            print "\nCopied", f + ".example", "to", f
-            print "Please edit", f, "to meet your requirements"
+            print("\nCopied", f + ".example", "to", f)
+            print("Please edit", f, "to meet your requirements")
             self.clashes += 1
             
     def checkNoErrors(self):
@@ -249,14 +252,14 @@ class Actions(object):
         if not os.path.exists(file): abort (file + " not found")
         shutil.copy(file , dir)
         if self.verbosity:
-            print "\n", file, "copied to", dir
+            print("\n", file, "copied to", dir)
             
     def removeFile(self, file, dir):
         dest = os.path.join(dir, file)
         if os.path.exists(dest): 
             os.remove(dest)
             if self.verbosity:
-                print "\n", file, "removed from", dir
+                print("\n", file, "removed from", dir)
                 
     def installDir(self, file, dir):
         if not os.path.isdir(dir): abort ("Please create directory " + dir + " to install " + file)
@@ -266,14 +269,14 @@ class Actions(object):
         if os.path.exists(dest): shutil.rmtree(dest)
         shutil.copytree(file , dest)
         if self.verbosity:
-            print "\n", file, "copied to", dir
+            print("\n", file, "copied to", dir)
             
     def removeDir(self, file, dir):
         dest = os.path.join(dir, file)
         if os.path.exists(dest): 
             shutil.rmtree(dest)
             if self.verbosity:
-                print "\n", directory, "removed from", dir
+                print("\n", directory, "removed from", dir)
  
     
 class WildflyActions(Actions):
@@ -291,7 +294,7 @@ class WildflyActions(Actions):
         version = "Unknown!!!"
         for line in out.splitlines():
             if line.startswith("JBoss AS product"): version = line[18:]
-        if self.verbosity: print "You are using", version
+        if self.verbosity: print("You are using", version)
                
     def enableApp(self, appName):
         self._cli("deploy --name=" + appName)
@@ -309,14 +312,14 @@ class WildflyActions(Actions):
             
     def _cli(self, command, tolerant=False, printOutput=False):
         cmd = self.cliCommand + " '" + command + "'"
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print("\nexecute: " + cmd )
         out, err, rc = self.execute(cmd)
         if self.verbosity > 1 or printOutput:
-            if out: print out
-            if err: print err
+            if out: print(out)
+            if err: print(err)
      
         if not tolerant and rc:
-            if not self.verbosity: print cmd, " ->"
+            if not self.verbosity: print(cmd, " ->")
             abort(err)
             
     def deploy(self, deploymentorder=100, libraries=[], jmsTopicConnectionFactory=None, target=None, logging=None):
@@ -359,16 +362,16 @@ class WildflyActions(Actions):
         
         cmd = self.cliCommand + " " + "'deploy"
         cmd = cmd + " " + war + "'"
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print("\nexecute: " + cmd )
         out, err, rc = self.execute(cmd)
         if self.verbosity > 1 or rc:
-            if out: print out
+            if out: print(out)
         if err:
             for line in err.splitlines():
                 line = line.strip()
                 if line:
                     if line.startswith("PER01"): continue
-                    print line
+                    print(line)
         if rc: abort("Deployment failed")
         
     def undeploy(self, appName):
@@ -390,7 +393,7 @@ class WildflyActions(Actions):
         elif driver.startswith("oracle"):
             dProps += ",valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.oracle.OracleValidConnectionChecker"
             dProps += ",exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.oracle.OracleExceptionSorter"
-        print dProps
+        print(dProps)
         self._cli("/subsystem=datasources/data-source=" + name + ":add(" + dProps + ")", printOutput=True)
       
     def createJMSResource(self, type, name):
@@ -430,17 +433,17 @@ class GlassfishActions(Actions):
         out, err, rc = self.execute(cmd)
         if rc: abort(err)
         vline = out.splitlines()[0]
-        if self.verbosity: print "You are using:", vline.split("=")[1].strip()
+        if self.verbosity: print("You are using:", vline.split("=")[1].strip())
       
     def deleteFileRealmUser(self, username):
         self._asadmin("delete-file-user " + username, tolerant=True)
         
     def stopDomain(self):
         cmd = self.asadminCommand + " stop-domain " + self.domain
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print("\nexecute: " + cmd )
         out, err, rc = self.execute(cmd)
         if rc:
-            print cmd, " ->" + err
+            print(cmd, " ->" + err)
             out, err, rc = self.execute("jps")
             if rc:
                 abort(err)
@@ -448,7 +451,7 @@ class GlassfishActions(Actions):
                 line = line.strip().split()
                 if line[1] == "ASMain":
                     cmd = "kill -9 " + line[0]
-                    if self.verbosity: print "\nexecute: " + cmd 
+                    if self.verbosity: print("\nexecute: " + cmd )
                     self.execute(cmd)
                     
     def startDomain(self):
@@ -459,7 +462,7 @@ class GlassfishActions(Actions):
         if len(files) != 1: abort("Exactly one file must match " + jar)
         shutil.copy(files[0] , self.lib_path)
         if self.verbosity:
-            print "\n", files[0], "copied to", self.lib_path
+            print("\n", files[0], "copied to", self.lib_path)
         
     def removeFromApplibs(self, jar):
         dest = os.path.join(self.lib_path, jar)
@@ -468,7 +471,7 @@ class GlassfishActions(Actions):
         if len(files) == 1: 
             os.remove(files[0])
             if self.verbosity:
-                print "\n", os.path.basename(files[0]), "removed from", self.lib_path
+                print("\n", os.path.basename(files[0]), "removed from", self.lib_path)
                   
     def unregisterDB(self, name):
         self._asadmin("delete-jdbc-resource jdbc/" + name, tolerant=True)
@@ -516,7 +519,7 @@ class GlassfishActions(Actions):
             
         self._asadmin("delete-file-user " + username, tolerant=True)
         f = open("pw", "w")
-        print >> f, "AS_ADMIN_USERPASSWORD=" + password
+        print("AS_ADMIN_USERPASSWORD=" + password, file=f)
         f.close() 
         self._asadmin("--passwordfile pw create-file-user --groups " + group + " " + username)
         os.remove("pw")
@@ -535,7 +538,7 @@ class GlassfishActions(Actions):
                 pass
             shutil.copy(src , dir)
             if self.verbosity:
-                print "\n", src, "copied to", dir
+                print("\n", src, "copied to", dir)
         
         # Fix the web.xml
         f = os.path.join("unzipped", "WEB-INF", "web.xml")
@@ -597,28 +600,28 @@ class GlassfishActions(Actions):
                     libstring = "--libraries " + libadd
             cmd = cmd + " " + libstring
         cmd = cmd + " " + war
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print("\nexecute: " + cmd )
         out, err, rc = self.execute(cmd)
         if self.verbosity > 1:
-            if out: print out
+            if out: print(out)
         if err:
             for line in err.splitlines():
                 line = line.strip()
                 if line:
                     if line.startswith("PER01"): continue
-                    print line
+                    print(line)
         if rc: abort("Deployment failed")              
        
     def _asadmin(self, command, tolerant=False, printOutput=False):
         cmd = self.asadminCommand + " " + command
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print("\nexecute: " + cmd )
         out, err, rc = self.execute(cmd)
         if self.verbosity > 1 or printOutput:
-            if out: print out
-            if err: print err
+            if out: print(out)
+            if err: print(err)
      
         if not tolerant and rc:
-            if not self.verbosity: print cmd, " ->"
+            if not self.verbosity: print(cmd, " ->")
             abort(err)
            
     def getAppName(self, app):
@@ -640,14 +643,14 @@ class GlassfishActions(Actions):
         
     def getAsadminProperty(self, name):
         cmd = self.asadminCommand + " get " + name
-        if self.verbosity: print "\nexecute: " + cmd
+        if self.verbosity: print("\nexecute: " + cmd)
         out, err, rc = self.execute(cmd)
         if rc: abort(err)
         return out.splitlines()[0].split("=")[1]
     
     def setAsadminProperty(self, name, value):
         cmd = self.asadminCommand + " set " + name + "=" + value
-        if self.verbosity: print "\nexecute: " + cmd 
+        if self.verbosity: print("\nexecute: " + cmd )
         out, err, rc = self.execute(cmd)
         if rc: abort(err)
 
