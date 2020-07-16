@@ -5,7 +5,10 @@ import threading
 import platform
 import shlex
 import subprocess
-import io
+try:
+    import io
+except ImportError:
+    import StringIO as io
 import getpass
 import sys
 import os
