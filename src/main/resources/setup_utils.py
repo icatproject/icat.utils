@@ -666,4 +666,4 @@ class Tee(threading.Thread):
             line = self.inst.readline()
             if not line: break
             for out in self.out:
-                out.write(line)
+                out.write(line.decode("utf8"))
