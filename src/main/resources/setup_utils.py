@@ -118,7 +118,7 @@ def getActions(file_name=None, required=[], binDir=False, appDir=False):
 
 class Actions(object):   
     def __init__(self, props, options):
-        self.verbosity = options.verbose
+        self.verbosity = options.verbose or 0
         self.secure = props["secure"].lower() == "true"
         try: self.binDir = os.path.expanduser(options.binDir)
         except: pass
@@ -666,4 +666,4 @@ class Tee(threading.Thread):
             line = self.inst.readline()
             if not line: break
             for out in self.out:
-                out.write(line)
+                out.write(line.decode("utf8"))
