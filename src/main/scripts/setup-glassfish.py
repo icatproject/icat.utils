@@ -55,7 +55,7 @@ class Tee(threading.Thread):
             line = self.inst.readline()
             if not line: break
             for out in self.out:
-                out.write(line)
+                out.write(line.decode("utf-8"))
 
 def abort(msg):
     """Print to stderr and stop with exit 1"""
