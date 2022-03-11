@@ -22,3 +22,6 @@ jobs:
 
       - name: Run Build
         run: mvn install -DskipTests
+
+      - name: Run Unit Tests
+        run: mvn test -B
