@@ -65,11 +65,13 @@ public class IcatUnits {
 	 *                     <symbolB>: <aliasB2> ..."
 	 */
 	public IcatUnits(String aliasOptions) {
-		for (String unitAliases : aliasOptions.split(",")) {
-			String[] splitUnitAliases = unitAliases.split(":");
-			Unit<?> unit = unitFormat.parse(splitUnitAliases[0].trim());
-			for (String alias : splitUnitAliases[1].trim().split("\\s+")) {
-				unitFormat.alias(unit, alias);
+		if (!aliasOptions.equals("")) {
+			for (String unitAliases : aliasOptions.split(",")) {
+				String[] splitUnitAliases = unitAliases.split(":");
+				Unit<?> unit = unitFormat.parse(splitUnitAliases[0].trim());
+				for (String alias : splitUnitAliases[1].trim().split("\\s+")) {
+					unitFormat.alias(unit, alias);
+				}
 			}
 		}
 	}
