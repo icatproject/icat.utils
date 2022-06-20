@@ -33,13 +33,16 @@ public class TestIcatUnits {
 		assertEquals(null, systemValue.units);
 		systemValue = icatUnits.new SystemValue(null, "kelvin");
 		assertEquals(null, systemValue.units);
+		systemValue = icatUnits.new SystemValue(null, "eV");
+		assertEquals(null, systemValue.units);
 
-		icatUnits = new IcatUnits("\u2103: celsius degC, K: kelvin");
+		icatUnits = new IcatUnits("\u2103: celsius, degC; K: kelvin; J: eV 1.602176634e-19");
 		systemValue = icatUnits.new SystemValue(null, "celsius");
 		assertEquals("Kelvin", systemValue.units);
 		systemValue = icatUnits.new SystemValue(null, "degC");
 		assertEquals("Kelvin", systemValue.units);
-		systemValue = icatUnits.new SystemValue(null, "kelvin");
-		assertEquals("Kelvin", systemValue.units);
+		systemValue = icatUnits.new SystemValue(1., "eV");
+		assertEquals("Joule", systemValue.units);
+		assertEquals(new Double(1.602176634e-19), systemValue.value);
 	}
 }

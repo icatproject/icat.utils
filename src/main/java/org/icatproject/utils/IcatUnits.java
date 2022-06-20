@@ -14,7 +14,8 @@ import tech.units.indriya.format.SimpleUnitFormat;
 public class IcatUnits {
 
 	/**
-	 * Holds the SI units and value for a quantity. If the units provided at construction could not be parsed, then these will be null.
+	 * Holds the SI units and value for a quantity. If the units provided at
+	 * construction could not be parsed, then these will be null.
 	 */
 	public class SystemValue {
 		public String units = null;
@@ -53,7 +54,7 @@ public class IcatUnits {
 
 	/**
 	 * In addition to the standard names and prefixes, allows aliasing other terms
-	 * for a unit. Note that Unit should be refered to by the symbol specified in
+	 * for a unit. Note that Unit should be referred to by the symbol specified in
 	 * the
 	 * <a href=
 	 * "https://javadoc.io/doc/tech.units/indriya/latest/tech/units/indriya/unit/Units.html">Indriya
@@ -61,16 +62,25 @@ public class IcatUnits {
 	 * will not be applied to aliases. For example, "mK" would be understood as
 	 * 0.001K, but if "Kelvin" is aliased than "mKelvin" will not be understood.
 	 * 
-	 * @param aliasOptions String with the format "<symbolA>: <aliasA1> <aliasA2>,
-	 *                     <symbolB>: <aliasB2> ..."
+	 * If needed, a conversion factor can be provided alongside an alias, for
+	 * example to alias "eV" as a unit of energy, a factor of 1.602176634e-19 should
+	 * be applied to convert to the SI unit J.
+	 * 
+	 * @param aliasOptions String with the format
+	 *                     <code>symbolA: aliasA1, aliasA2 factorA2; symbolB: aliasB1 ...</code>
 	 */
 	public IcatUnits(String aliasOptions) {
 		if (!aliasOptions.equals("")) {
-			for (String unitAliases : aliasOptions.split(",")) {
+			for (String unitAliases : aliasOptions.split(";")) {
 				String[] splitUnitAliases = unitAliases.split(":");
 				Unit<?> unit = unitFormat.parse(splitUnitAliases[0].trim());
-				for (String alias : splitUnitAliases[1].trim().split("\\s+")) {
-					unitFormat.alias(unit, alias);
+				for (String alias : splitUnitAliases[1].trim().split(",")) {
+					String[] aliasSplit = alias.trim().split("\\s+");
+					if (aliasSplit.length == 2) {
+						unitFormat.alias(unit.multiply(new Double(aliasSplit[1])), aliasSplit[0]);
+					} else {
+						unitFormat.alias(unit, aliasSplit[0]);
+					}
 				}
 			}
 		}
