@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A script for generating DataCite DOI's for ICAT Component
 releases. When given a major, minor and patch release number along
 with username and password credentials, it will build a DOI of the
