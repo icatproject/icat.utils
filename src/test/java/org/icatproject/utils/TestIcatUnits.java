@@ -1,6 +1,8 @@
 package org.icatproject.utils;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import org.icatproject.utils.IcatUnits.SystemValue;
 import org.junit.Test;
 
@@ -10,13 +12,13 @@ public class TestIcatUnits {
 		// Both null
 		IcatUnits icatUnits = new IcatUnits();
 		SystemValue systemValue = icatUnits.new SystemValue(null, "impossible to parse");
-		assertEquals(null, systemValue.units);
-		assertEquals(null, systemValue.value);
+		assertNull(systemValue.units);
+		assertNull(systemValue.value);
 
 		// Unit parsed, value null
 		systemValue = icatUnits.new SystemValue(null, "K");
 		assertEquals("Kelvin", systemValue.units);
-		assertEquals(null, systemValue.value);
+		assertNull(systemValue.value);
 
 		// Unit parsed, value converted
 		systemValue = icatUnits.new SystemValue(1., "GK");
@@ -28,15 +30,16 @@ public class TestIcatUnits {
 	public void testAliasing() {
 		IcatUnits icatUnits = new IcatUnits();
 		SystemValue systemValue = icatUnits.new SystemValue(null, "celsius");
-		assertEquals(null, systemValue.units);
+		assertNull(systemValue.units);
 		systemValue = icatUnits.new SystemValue(null, "degC");
-		assertEquals(null, systemValue.units);
+		assertNull(systemValue.units);
 		systemValue = icatUnits.new SystemValue(null, "kelvin");
-		assertEquals(null, systemValue.units);
+		assertNull(systemValue.units);
 		systemValue = icatUnits.new SystemValue(null, "eV");
-		assertEquals(null, systemValue.units);
+		assertNull(systemValue.units);
 
-		icatUnits = new IcatUnits("\u2103: celsius, degC; K: kelvin; J: eV 1.602176634e-19");
+		new IcatUnits("\u2103: celsius, degC; K: kelvin; J: eV 1.602176634e-19");
+		new IcatUnits();
 		systemValue = icatUnits.new SystemValue(null, "celsius");
 		assertEquals("Kelvin", systemValue.units);
 		systemValue = icatUnits.new SystemValue(null, "degC");
