@@ -14,37 +14,25 @@ import tech.units.indriya.format.SimpleUnitFormat;
 public class IcatUnits {
 
 	/**
-	 * Holds the SI units and value for a quantity. If the units provided at
-	 * construction could not be parsed, then these will be null.
+	 * Holds the numerical value and SI units for a quantity.
 	 */
-	public class SystemValue {
-		public String units = null;
-		public Double value = null;
+	public static class Value {
+		public String units;
+		public double numericalValue;
 
 		/**
-		 * Converts value units into an SI quantity.
+		 * Instantiate with a numericalValue and units.
 		 * 
-		 * @param value Quantity in (potentially) non-SI units.
-		 * @param units Units of the provided value.
+		 * @param numericalValue Numerical value of the quantity.
+		 * @param units          Units of the provided value.
 		 */
-		public SystemValue(Double value, String units) {
-			try {
-				Unit<?> unit = unitFormat.parse(units);
-				Unit<?> systemUnit = unit.getSystemUnit();
-				this.units = systemUnit.getName();
-				if (value == null) {
-					return;
-				}
-				UnitConverter converter = unit.getConverterToAny(systemUnit);
-				this.value = converter.convert(value.doubleValue());
-			} catch (MeasurementParseException | UnconvertibleException | IncommensurableException e) {
-				// If the units can't be parsed, or the value converted, then just return
-				return;
-			}
+		public Value(double numericalValue, String units) {
+			this.numericalValue = numericalValue;
+			this.units = units;
 		}
 	}
 
-	private static final SimpleUnitFormat unitFormat = SimpleUnitFormat.getInstance();
+	private final SimpleUnitFormat unitFormat = SimpleUnitFormat.getNewInstance();
 
 	/**
 	 * Creates instance with any aliasing.
@@ -77,12 +65,33 @@ public class IcatUnits {
 				for (String alias : splitUnitAliases[1].trim().split(",")) {
 					String[] aliasSplit = alias.trim().split("\\s+");
 					if (aliasSplit.length == 2) {
-						unitFormat.alias(unit.multiply(new Double(aliasSplit[1])), aliasSplit[0]);
+						unitFormat.alias(unit.multiply(Double.parseDouble(aliasSplit[1])), aliasSplit[0]);
 					} else {
 						unitFormat.alias(unit, aliasSplit[0]);
 					}
 				}
 			}
+		}
+	}
+
+	/**
+	 * Converts a value into SI units.
+	 * 
+	 * @param numericalValue Numerical value of a quantity associated with a unit.
+	 * @param units          Units of the quantity.
+	 * @return Either an instance of Value, or null if the units could not be converted.
+	 */
+	public Value convertValueToSiUnits(double numericalValue, String units) {
+		try {
+			Unit<?> unit = unitFormat.parse(units);
+			Unit<?> systemUnit = unit.getSystemUnit();
+			String convertedUnits = systemUnit.getName();
+			UnitConverter converter = unit.getConverterToAny(systemUnit);
+			double convertedValue = converter.convert(numericalValue);
+			return new Value(convertedValue, convertedUnits);
+		} catch (MeasurementParseException | UnconvertibleException | IncommensurableException e) {
+			// If the units can't be parsed, or the value converted, then just return null
+			return null;
 		}
 	}
 
