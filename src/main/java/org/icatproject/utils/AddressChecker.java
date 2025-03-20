@@ -1,6 +1,8 @@
 package org.icatproject.utils;
 
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,98 +11,52 @@ import java.util.List;
  */
 public class AddressChecker {
 
-	enum IP {
-		IP4, IP6
-	}
+	private final List<Pattern> patterns = new ArrayList<Pattern>();
 
-	private class Actual {
+	private static class Pattern {
+		private final InetAddress patternAddress;
+		private final BigInteger mask;
 
-		private BigInteger number;
-		private IP ip;
+		public Pattern(InetAddress patternAddress, Integer prefixLength) throws AddressCheckerException {
+			int inetAddressBits = patternAddress.getAddress().length * 8;
 
-		public Actual(String add) throws AddressCheckerException {
-
-			if (add.indexOf('.') >= 0) {
-				ip = IP.IP4;
-				String[] sections = add.split("\\.");
-				if (sections.length != 4) {
-					throw new AddressCheckerException("IP4 addresses must have 4 parts");
-				}
-				number = new BigInteger(sections[0]);
-				for (int i = 1; i < 4; i++) {
-					number = number.shiftLeft(8).add(new BigInteger(sections[i]));
-				}
-			} else {
-				ip = IP.IP6;
-				String[] sections = add.split(":");
-				if (sections.length != 8) {
-					throw new AddressCheckerException("IP6 addresses must have 8 parts");
-				}
-				number = new BigInteger(sections[0], 16);
-				for (int i = 1; i < 8; i++) {
-					number = number.shiftLeft(16).add(new BigInteger(sections[i], 16));
-				}
+			if (prefixLength == null) {
+				prefixLength = inetAddressBits;
 			}
+
+			if (prefixLength > inetAddressBits) {
+				throw new AddressCheckerException(String.format("Prefix length %d cannot be greater than %d for address %s", prefixLength, inetAddressBits, patternAddress.getHostAddress()));
+			}
+
+			BigInteger mask = BigInteger.ZERO;
+			for (int i = 0; i < prefixLength; i++) {
+				mask = mask.setBit(inetAddressBits - i - 1);
+			}
+
+			this.patternAddress = patternAddress;
+			this.mask = mask;
 		}
 
-		public boolean matches(Pattern pat) {
-			if (ip != pat.ip) {
+		public boolean matches(InetAddress address) {
+			// Check that they are the same protocol (IPv4/IPv6)
+			if (address.getAddress().length != patternAddress.getAddress().length) {
 				return false;
 			}
-			return (number.xor(pat.number).and(pat.mask).equals(BigInteger.ZERO));
+
+			BigInteger maskedAddress = inetAddressToBigInteger(address).and(mask);
+			BigInteger maskedPatternAddress = inetAddressToBigInteger(patternAddress).and(mask);
+
+			return maskedAddress.equals(maskedPatternAddress);
 		}
 	}
 
-	private class Pattern {
-
-		private BigInteger number;
-		private BigInteger mask;
-		private IP ip;
-		private final static String prefix = "Configuration error: ";
-
-		public Pattern(String string) throws AddressCheckerException {
-			String[] parts = string.split("/");
-			if (parts.length != 2) {
-				throw new AddressCheckerException(
-						prefix + "AddressChecker patterns must have one slash not: '" + string + "'");
-			}
-			int len = Integer.parseInt(parts[1]);
-			String add = parts[0];
-			if (add.indexOf('.') >= 0) {
-				ip = IP.IP4;
-				String[] sections = add.split("\\.");
-				if (sections.length != 4) {
-					throw new AddressCheckerException(prefix + "IP4 addresses must have 4 parts");
-				}
-				number = new BigInteger(sections[0]);
-				for (int i = 1; i < 4; i++) {
-					number = number.shiftLeft(8).add(new BigInteger(sections[i]));
-				}
-				mask = BigInteger.ZERO;
-				for (int i = 32 - len; i < 32; i++) {
-					mask = mask.setBit(i);
-				}
-			} else {
-				ip = IP.IP6;
-				String[] sections = add.split(":");
-				if (sections.length != 8) {
-					throw new AddressCheckerException(prefix + "IP6 addresses must have 8 parts");
-				}
-				number = new BigInteger(sections[0], 16);
-				for (int i = 1; i < 8; i++) {
-					number = number.shiftLeft(16).add(new BigInteger(sections[i], 16));
-				}
-				mask = BigInteger.ZERO;
-				for (int i = 128 - len; i < 128; i++) {
-					mask = mask.setBit(i);
-				}
-			}
-
+	private static BigInteger inetAddressToBigInteger(InetAddress inetAddress) {
+		BigInteger result = BigInteger.ZERO;
+		for (byte b : inetAddress.getAddress()) {
+			result = result.shiftLeft(8).add(BigInteger.valueOf(b & 0xff));
 		}
-
+		return result;
 	}
-
-	private List<Pattern> patterns = new ArrayList<Pattern>();
 
 	/**
 	 * Takes a space separated list of patterns to accept
@@ -112,9 +68,39 @@ public class AddressChecker {
 	 */
 	public AddressChecker(String patternString) throws AddressCheckerException {
 		for (String s : patternString.trim().split("\\s+")) {
-			patterns.add(new Pattern(s));
-		}
+			// Split on the first "/", creating up to 2 parts
+			String[] parts = s.split("/", 2);
 
+			// A hostname can resolve to multiple IP addresses
+			InetAddress[] inetAddresses;
+			try {
+				inetAddresses = InetAddress.getAllByName(parts[0]);
+			} catch (UnknownHostException e) {
+				throw new AddressCheckerException(String.format("Invalid address: %s", s));
+			}
+
+			Integer maskBits = null;
+			if (parts.length > 1) {
+				try {
+					maskBits = Integer.valueOf(parts[1]);
+				} catch (NumberFormatException e) {
+					throw new AddressCheckerException(String.format("Invalid network prefix: %s", s));
+				}
+
+				if (maskBits < 0) {
+					throw new AddressCheckerException(String.format("Network prefix cannot be negative: %s", s));
+				}
+			}
+
+			for (InetAddress inetAddress : inetAddresses) {
+				// InetAddress.toString() returns "<hostname>/<ip>", so it will only start with "/" if an IP was used.
+				if (!inetAddress.toString().startsWith("/") && maskBits != null) {
+					throw new AddressCheckerException(String.format("Cannot specify network prefix with a hostname: %s", s));
+				}
+
+				patterns.add(new Pattern(inetAddress, maskBits));
+			}
+		}
 	}
 
 	/**
@@ -128,13 +114,19 @@ public class AddressChecker {
 	 *             if the address is badly formed.
 	 */
 	public boolean check(String address) throws AddressCheckerException {
-		Actual act = new Actual(address);
+		InetAddress inetAddress;
+		try {
+			inetAddress = InetAddress.getByName(address);
+		} catch (UnknownHostException e) {
+			throw new AddressCheckerException(String.format("Invalid address: %s", address));
+		}
+
 		for (Pattern pattern : patterns) {
-			if (act.matches(pattern)) {
+			if (pattern.matches(inetAddress)) {
 				return true;
 			}
 		}
+
 		return false;
 	}
-
 }
