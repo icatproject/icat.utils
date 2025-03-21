@@ -21,6 +21,7 @@ public class AddressChecker {
 			int inetAddressBits = patternAddress.getAddress().length * 8;
 
 			if (prefixLength == null) {
+				// Default to an exact match (/32 for IPv4, /128 for IPv6)
 				prefixLength = inetAddressBits;
 			}
 
@@ -28,6 +29,10 @@ public class AddressChecker {
 				throw new AddressCheckerException(String.format("Prefix length %d cannot be greater than %d for address %s", prefixLength, inetAddressBits, patternAddress.getHostAddress()));
 			}
 
+			/* Set the highest-order bits, e.g. for IPv4 with prefixLength=24:
+			 *  - bits 0-7 are set to 0
+			 *  - bits 8-31 are set to 1
+			 */
 			BigInteger mask = BigInteger.ZERO;
 			for (int i = 0; i < prefixLength; i++) {
 				mask = mask.setBit(inetAddressBits - i - 1);
