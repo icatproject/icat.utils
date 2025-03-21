@@ -51,11 +51,9 @@ public class AddressChecker {
 	}
 
 	private static BigInteger inetAddressToBigInteger(InetAddress inetAddress) {
-		BigInteger result = BigInteger.ZERO;
-		for (byte b : inetAddress.getAddress()) {
-			result = result.shiftLeft(8).add(BigInteger.valueOf(b & 0xff));
-		}
-		return result;
+		// Takes a byte array in big-endian order, so it is suitable for network addresses
+		// '1' indicates that a positive number should be returned
+		return new BigInteger(1, inetAddress.getAddress());
 	}
 
 	/**
