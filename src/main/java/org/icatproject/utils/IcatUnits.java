@@ -86,6 +86,12 @@ public class IcatUnits {
 			Unit<?> unit = unitFormat.parse(units);
 			Unit<?> systemUnit = unit.getSystemUnit();
 			String convertedUnits = systemUnit.getName();
+			if (convertedUnits == null) {
+				// String may be a valid compound unit, but not convert to an SI unit
+				// For example, N/A is (ironically) netwons per ampere but will break icat.lucene which expects
+				// value.units to be a non-null String. Returning null in place of Value is safe.
+				return null;
+			}
 			UnitConverter converter = unit.getConverterToAny(systemUnit);
 			double convertedValue = converter.convert(numericalValue);
 			return new Value(convertedValue, convertedUnits);

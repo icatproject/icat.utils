@@ -46,4 +46,13 @@ public class TestIcatUnits {
 		assertEquals("Joule", value.units);
 		assertEquals(1.602176634e-19, value.numericalValue, 0.);
 	}
+
+	@Test
+	public void testNotApplicable() {
+		// N/A is used by ISIS, but technically this is the compound unit newtons per ampere
+		// Ensure it returns a null Value safely
+		IcatUnits icatUnits = new IcatUnits();
+		Value value = icatUnits.convertValueToSiUnits(1., "N/A");
+		assertNull(value);
+	}
 }
